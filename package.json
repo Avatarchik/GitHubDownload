@@ -1,0 +1,12 @@
+{
+  "name": "com.hananoki.github-download",
+  "displayName": "GitHubDownload",
+  "version": "0.1.0-preview",
+  "unity": "2018.3",
+  "description": "Download files from Release on GitHub",
+  "keywords": [
+    "Editor"
+  ],
+  "category": "Editor Extentions",
+  "dependencies": {}
+}
