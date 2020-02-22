@@ -1,8 +1,16 @@
 # GitHubDownload
 
+## [0.3.3] - 2020-02-22
+
+### Fixed
+- Fixed 「WebException: The remote server returned an error: (404) Not Found」
+
+### Changed
+- Changed message position.
+
 ## [0.3.2] - 2020-02-22
 
-## Fixed
+### Fixed
 - Fixed loading of icon resources
 
 ## [0.3.1] - 2020-02-22

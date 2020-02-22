@@ -63,7 +63,11 @@ namespace Hananoki.GitHubDownload {
 
 		bool indexChanged;
 		bool networking;
+		
 		public string networkingMsg;
+
+		bool networkError;
+		public string networkingErrorMsg;
 
 		public static string gitHubCacheDirectory {
 			get {
@@ -186,19 +190,30 @@ namespace Hananoki.GitHubDownload {
 			string content = string.Empty;
 			m_js = null;
 			networking = true;
+			networkError = false;
 			networkingMsg = "Download Release Latest Json";
 			EditorApplication.update += updateThreadSync;
 			await Task.Run( () => {
-				using( var client = new WebClient() ) {
-					var url = $"{githubURL}/{name}/{repoName}/releases/latest";
+				try {
+					using( var client = new WebClient() ) {
+						var url = $"{githubURL}/{name}/{repoName}/releases/latest";
 
-					client.Headers.Add( "User-Agent", "Nothing" );
-					//System.Threading.Thread.Sleep( 10000 );
-					content = client.DownloadString( url );
+						client.Headers.Add( "User-Agent", "Nothing" );
+						//System.Threading.Thread.Sleep( 10000 );
+						content = client.DownloadString( url );
+					}
+				}
+				catch( Exception e ) {
+					Debug.LogException( e );
+					networkError = true;
+					networkingErrorMsg = e.Message;
 				}
 			} );
 			networking = false;
 			EditorApplication.update -= updateThreadSync;
+
+			if( string.IsNullOrEmpty( content ) ) return;
+
 			m_js = JsonUtility.FromJson<ReleaseJson>( content );
 			if( m_js == null ) return;
 			SaveJson( m_js );
@@ -240,10 +255,7 @@ namespace Hananoki.GitHubDownload {
 				EditorApplication.ExecuteMenuItem( "Edit/Preferences..." );
 			}
 			EditorGUI.BeginChangeCheck();
-			if( E.i.urls.Count == 0 ) {
-				//GUILayout.Label( new GUIContent( "Missing URL", s_styles.IconInfo ), EditorStyles.toolbarButton );
-			}
-			else {
+			if( 0 < E.i.urls.Count ) {
 				m_selectURL = EditorGUILayout.Popup( m_selectURL, E.i.urls.Select( x => GetFileNameWithoutExtension( x ) ).ToArray(), EditorStyles.toolbarDropDown );
 			}
 
@@ -251,6 +263,7 @@ namespace Hananoki.GitHubDownload {
 				MakeDownloadList();
 				ReadJson();
 				indexChanged = true;
+				networkError = false;
 			}
 			GUILayout.FlexibleSpace();
 
@@ -279,8 +292,11 @@ namespace Hananoki.GitHubDownload {
 				EditorGUILayout.HelpBox( "Set URL from preferences", MessageType.Info );
 				return;
 			}
+			if( networkError  ) {
+				EditorGUILayout.HelpBox( networkingErrorMsg, MessageType.Error );
+				return;
+			}
 
-			
 			using( new GUILayout.HorizontalScope() ) {
 				bool force = false;
 				if( indexChanged ) {
@@ -338,7 +354,7 @@ namespace Hananoki.GitHubDownload {
 			
 			if( networking ) {
 				var last = GUILayoutUtility.GetLastRect();
-				var y = last.y + last.height - 20;
+				var y = last.y /*+ last.height - 20*/;
 				last.y = y;
 				last.height = 20;
 				//EditorGUI.DrawRect( last, new Color( 0, 0, 1, 0.5f ) );
@@ -346,7 +362,7 @@ namespace Hananoki.GitHubDownload {
 				last.width = EditorStyles.label.CalcSize( cont ).x;
 				last.x += 4;
 				last.width += 4;
-				last.y -= 4;
+				last.y += 4;
 				EditorGUI.DrawRect( last, new Color( 1, 1, 1, 0.5f ) );
 				GUI.Label( last, cont );
 			}
