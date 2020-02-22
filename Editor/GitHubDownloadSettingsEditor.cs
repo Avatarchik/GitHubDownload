@@ -4,6 +4,9 @@ using System.Linq;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEditor;
+using UnityEditorInternal;
+
+using static System.IO.Path;
 
 namespace Hananoki.GitHubDownload {
 	[Serializable]
@@ -13,10 +16,25 @@ namespace Hananoki.GitHubDownload {
 
 		public string adb_exe;
 		public string opendir;
-		public int fold;
+		//public int fold;
+		public int showMode;
 
-		
 		public static GitHubDownloadSettingsEditor i;
+
+		public static string unityPreferencesFolder;
+
+		public static string gitHubCacheDirectory {
+			get {
+#if UNITY_EDITOR_WIN
+				return GetDirectoryName( ( GetDirectoryName( unityPreferencesFolder ) ) ).Replace( '\\', '/' ) + "/GitHub";
+#elif UNITY_EDITOR_OSX
+			return unityPreferencesFolder + "/" + "../../../Unity/GitHub";
+#else
+			return "";
+#endif
+			}
+		}
+
 
 		public GitHubDownloadSettingsEditor() {
 			
@@ -30,6 +48,7 @@ namespace Hananoki.GitHubDownload {
 
 
 		public static void Load() {
+			unityPreferencesFolder = InternalEditorUtility.unityPreferencesFolder;
 			if( i != null ) return;
 			i = Get( PackageInfo.editorPrefName );
 			if( i == null ) {
@@ -53,9 +72,6 @@ namespace Hananoki.GitHubDownload {
 
 		public static void Set( string name, GitHubDownloadSettingsEditor data ) {
 			string json = JsonUtility.ToJson( data );
-#if LOCAL_DEBUG
-			Debug.Log( json );
-#endif
 			EditorPrefs.SetString( name, json );
 		}
 	}

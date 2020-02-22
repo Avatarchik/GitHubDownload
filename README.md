@@ -1,16 +1,32 @@
 # GitHubDownload
 
-[English](https://translate.google.com/translate?sl=ja&tl=en&u=https://github.com/hananoki/GitHubDownload) (by Google Translate)
+[Japanese](https://translate.google.com/translate?sl=en&tl=ja&u=https://github.com/hananoki/GitHubDownload) (by Google Translate)
 
+## Overview
+- You can handle packages released on `GitHub Release` by operations on Unity.
+- `.unitypackage` can be imported with a button.
+- Git URL can be registered from preferences.
 
-## これは何？
+![](Documentation~/img01.gif)
 
-GithubのReleaseからファイルをダウンロードしてきます  
-REST APIを使用したダウンロードの実験です  
-現状まともな機能はありません  
+- You can read the URL list from a file
 
-## 今後のよてい
+![](Documentation~/img02.gif)
 
-- EditorPrefに設定を保存する
-- ファイルの管理的なもの
-- PackageMnagerにURLを送るとか
+## Installation
+
+Can be installed in any way
+
+### Install Unity Package Manager
+
+Add following lines to the `dependencies` section of the `Packages/manifest.json`.
+```json
+"dependencies": {
+  "com.hananoki.github-download": "https://github.com/hananoki/GitHubDownload.git"
+}
+```
+
+### Install `.unitypackage`
+
+Download a `.unitypackage` file from the [Release page](https://github.com/hananoki/GitHubDownload/releases).
+

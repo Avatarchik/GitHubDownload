@@ -1,5 +1,16 @@
 # GitHubDownload
 
+## [0.4.0] - 2020-02-23
+
+### Added
+- "Zip" "tar.gz" can be downloaded
+
+### Changed
+- Distinguish between "Release" and "Latest Release"
+- Changed import process to icon button
+- Message is displayed during WebRequest
+- Update README.md
+
 ## [0.3.3] - 2020-02-22
 
 ### Fixed

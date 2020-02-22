@@ -1,10 +1,9 @@
-﻿using UnityEditor;
-using UnityEngine;
+﻿
 using System.Collections.Generic;
-using UnityEditorInternal;
-//using UnityEngine;
-using System.Linq;
 using System.IO;
+using UnityEditor;
+using UnityEditorInternal;
+using UnityEngine;
 
 using E = Hananoki.GitHubDownload.GitHubDownloadSettingsEditor;
 
@@ -123,6 +122,7 @@ namespace Hananoki.GitHubDownload {
 						}
 					}
 					E.AddURLs( lst.ToArray() );
+					GitHubDownloadWindow.Repaint();
 				}
 			}
 		}
@@ -159,6 +159,7 @@ namespace Hananoki.GitHubDownload {
 					var a = CheckURL( E.i.adb_exe );
 					if( !string.IsNullOrEmpty( a ) ) {
 						E.AddURLs( a );
+						GitHubDownloadWindow.Repaint();
 					}
 				}
 				r = GUILayoutUtility.GetRect( new GUIContent( s_styles.Favorite ), s_styles.IconButton );
@@ -217,7 +218,7 @@ namespace Hananoki.GitHubDownload {
 
 		[SettingsProvider]
 		public static SettingsProvider PreferenceView() {
-			var provider = new SettingsProvider( $"Preferences/{PackageInfo.name}", SettingsScope.User ) {
+			var provider = new SettingsProvider( $"Preferences/Hananoki/{PackageInfo.name}", SettingsScope.User ) {
 				label = $"{PackageInfo.name}",
 				guiHandler = PreferencesGUI,
 				titleBarGuiHandler = () => GUILayout.Label( $"{PackageInfo.version}", EditorStyles.miniLabel ),

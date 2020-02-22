@@ -10,10 +10,13 @@ namespace Hananoki.GitHubDownload {
 		}
 		public string url;
 		public string tag_name;
-		
+
 		public Assets[] assets;
 		public string tarball_url;
 		public string zipball_url;
 		public string body;
+
+		[NonSerialized]
+		public bool toggle;
 	}
 }
