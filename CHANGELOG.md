@@ -1,5 +1,10 @@
 # GitHubDownload
 
+## [0.3.1] - 2020-02-22
+
+### Added
+- Added icons for 2018.3 or 2018.4
+
 ## [0.3.0] - 2020-02-22
 
 ### Added
