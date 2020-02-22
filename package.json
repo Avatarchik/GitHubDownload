@@ -1,7 +1,7 @@
 {
   "name": "com.hananoki.github-download",
   "displayName": "GitHubDownload",
-  "version": "0.2.0-preview",
+  "version": "0.3.0-preview",
   "unity": "2018.3",
   "description": "Download files from Release on GitHub",
   "keywords": [

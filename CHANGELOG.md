@@ -1,5 +1,14 @@
 # GitHubDownload
 
+## [0.3.0] - 2020-02-22
+
+### Added
+- URL can be added from preferences.
+
+### Changed
+- Automatically obtain release information for the first time.
+- Asynchronous network processing
+
 ## [0.2.0] - 2020-02-22
 
 ### Added

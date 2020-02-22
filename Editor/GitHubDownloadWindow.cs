@@ -10,6 +10,7 @@ using UnityEditorInternal;
 using System.Threading.Tasks;
 
 using static System.IO.Path;
+using E = Hananoki.GitHubDownload.GitHubDownloadSettingsEditor;
 
 namespace Hananoki.GitHubDownload {
 
@@ -17,10 +18,10 @@ namespace Hananoki.GitHubDownload {
 
 		string githubURL = "https://api.github.com/repos";
 
-		string[] urls = {
-			"https://github.com/hananoki/HananokiSharedModule.git",
-			"https://github.com/hananoki/HierarchyDropDown.git",
-			};
+		//string[] urls = {
+		//	"https://github.com/hananoki/HananokiSharedModule.git",
+		//	"https://github.com/hananoki/HierarchyDropDown.git",
+		//	};
 
 		public int m_selectURL;
 		public ReleaseJson m_js;
@@ -32,6 +33,10 @@ namespace Hananoki.GitHubDownload {
 			public GUIStyle helpBox;
 
 			public Texture2D Icon;
+			public Texture2D IconSetting;
+			public Texture2D IconError;
+			public Texture2D IconInfo;
+			public Texture2D[] IconWaitSpin;
 			public Styles() {
 				ExposablePopupItem = new GUIStyle( "ExposablePopupItem" );
 				ExposablePopupItem.margin = new RectOffset( 2, 2, 2, 2 );
@@ -42,24 +47,23 @@ namespace Hananoki.GitHubDownload {
 				miniBoldLabel.fontSize = EditorStyles.miniBoldLabel.fontSize;
 				helpBox = new GUIStyle( EditorStyles.helpBox );
 				helpBox.fontSize = EditorStyles.boldLabel.fontSize;
+				IconError = EditorGUIUtility.FindTexture( "console.erroricon.sml" );
+				IconInfo = EditorGUIUtility.FindTexture( "console.infoicon.sml" );
 				Icon = EditorGUIUtility.FindTexture( "winbtn_mac_inact" );
+				IconWaitSpin = Resources.FindObjectsOfTypeAll<Texture2D>().Where( x => x.name.Contains( "WaitSpin" )).OrderBy( x => x.name ).ToArray();
+				IconSetting = EditorGUIUtility.FindTexture( "SettingsIcon" );
 			}
 		}
 
 		public static Styles s_styles;
 
 
-		[MenuItem( "Window/GitHubDownload" )]
-		public static void Open() {
-			var window = GetWindow<GitHubDownloadWindow>();
-			window.titleContent = new GUIContent( "GitHubDownload" );
-		}
+		public string[] m_downloadFiles;
+		static Vector2 m_scroll;
 
-
-		void OnEnable() {
-			MakeDownloadFIles();
-		}
-
+		bool indexChanged;
+		bool networking;
+		public string networkingMsg;
 
 		public static string gitHubCacheDirectory {
 			get {
@@ -73,23 +77,49 @@ namespace Hananoki.GitHubDownload {
 			}
 		}
 
-		ReleaseJson GetReleasesLatest( string name, string repoName ) {
-			using( var client = new WebClient() ) {
-				var url = $"{githubURL}/{name}/{repoName}/releases/latest";
 
-				client.Headers.Add( "User-Agent", "Nothing" );
 
-				var content = client.DownloadString( url );
-				return JsonUtility.FromJson<ReleaseJson>( content );
+		[MenuItem( "Window/GitHubDownload" )]
+		public static void Open() {
+			var window = GetWindow<GitHubDownloadWindow>();
+			window.titleContent = new GUIContent( "GitHubDownload" );
+		}
+
+
+		void OnEnable() {
+			E.Load();
+			MakeDownloadList();
+			ReadJson();
+			indexChanged = true;
+
+			
+		}
+
+		static float curTime;
+		static float lastTime;
+		public static int m_count;
+		static float m_watiTime;
+
+		public  void updateThreadSync() {
+			curTime = Time.realtimeSinceStartup;
+			float deltaTime = (float) ( curTime - lastTime );
+			lastTime = curTime;
+
+			m_watiTime -= deltaTime;
+			if( m_watiTime < 0 ) {
+				m_watiTime = 0.1250f;
+
+				m_count++;
+				if( 12 <= m_count ) {
+					m_count = 0;
+				}
+				Repaint();
 			}
 		}
 
-		ReleaseJson GetReleasesLatest( string gitURL ) {
-			var m = ParseURL( gitURL );
-			return GetReleasesLatest( m[ 0 ], m[ 1 ] );
-		}
 
 		string[] ParseURL( string gitURL ) {
+			if( string.IsNullOrEmpty( gitURL ) ) return null;
 			var m = Regex.Matches( gitURL, @"^(https://github.com)/(.*)" );
 			string[] ss = m[ 0 ].Groups[ 2 ].Value.Split( '/' );
 
@@ -98,16 +128,21 @@ namespace Hananoki.GitHubDownload {
 
 
 
-		string[] m_downloadFiles;
-		static Vector2 m_scroll;
-
-
 		string GetCurrentURL() {
-			return urls[ m_selectURL ];
+			if( E.i.urls.Count == 0 ) return string.Empty;
+			if( m_selectURL < 0 ) {
+				m_selectURL = 0;
+				indexChanged = true;
+			}
+			if( E.i.urls.Count <= m_selectURL  ) {
+				m_selectURL = E.i.urls.Count -1;
+				indexChanged = true;
+			}
+			return E.i.urls[ m_selectURL ];
 		}
 
 
-		void MakeDownloadFIles() {
+		void MakeDownloadList() {
 			m_downloadFiles = new string[ 0 ];
 
 			var info = ParseURL( GetCurrentURL() );
@@ -121,7 +156,7 @@ namespace Hananoki.GitHubDownload {
 
 		void SaveJson( ReleaseJson js ) {
 			if( js == null ) return;
-			var info = ParseURL( urls[ m_selectURL ] );
+			var info = ParseURL( E.i.urls[ m_selectURL ] );
 			var opath = $"{gitHubCacheDirectory}/{info[ 0 ]}/{info[ 1 ]}";
 
 			if( !Directory.Exists( opath ) ) {
@@ -136,7 +171,7 @@ namespace Hananoki.GitHubDownload {
 
 		void ReadJson() {
 			m_js = null;
-			var info = ParseURL( urls[ m_selectURL ] );
+			var info = ParseURL( E.i.urls[ m_selectURL ] );
 			var opath = $"{gitHubCacheDirectory}/{info[ 0 ]}/{info[ 1 ]}";
 
 			if( !Directory.Exists( opath ) ) return;
@@ -147,13 +182,44 @@ namespace Hananoki.GitHubDownload {
 		}
 
 
-		public async void DownloadRelease( string url, string name, string repoName, string tag ) {
+		async void GetReleasesLatest( string name, string repoName ) {
+			string content = string.Empty;
+			m_js = null;
+			networking = true;
+			networkingMsg = "Download Release Latest Json";
+			EditorApplication.update += updateThreadSync;
+			await Task.Run( () => {
+				using( var client = new WebClient() ) {
+					var url = $"{githubURL}/{name}/{repoName}/releases/latest";
+
+					client.Headers.Add( "User-Agent", "Nothing" );
+					//System.Threading.Thread.Sleep( 10000 );
+					content = client.DownloadString( url );
+				}
+			} );
+			networking = false;
+			EditorApplication.update -= updateThreadSync;
+			m_js = JsonUtility.FromJson<ReleaseJson>( content );
+			if( m_js == null ) return;
+			SaveJson( m_js );
+		}
+
+		void GetReleasesLatest( string gitURL ) {
+			var m = ParseURL( gitURL );
+			GetReleasesLatest( m[ 0 ], m[ 1 ] );
+		}
+
+
+		public async void DownloadFile( string url, string name, string repoName, string tag ) {
 			var outputDirectory = $"{gitHubCacheDirectory}/{name}/{repoName}/{tag}";
 
 			if( !Directory.Exists( outputDirectory ) ) {
 				Directory.CreateDirectory( outputDirectory );
 			}
 
+			networking = true;
+			networkingMsg = "Download File";
+			EditorApplication.update += updateThreadSync;
 			await Task.Run( () => {
 				var fname = GetFileName( url );
 				//System.Threading.Thread.Sleep( 10000 );
@@ -161,29 +227,72 @@ namespace Hananoki.GitHubDownload {
 					wc.DownloadFile( new Uri( url ), outputDirectory + "/" + fname );
 				}
 			} );
+			networking = false;
+			EditorApplication.update -= updateThreadSync;
+
+			MakeDownloadList();
+		}
 
 
-			MakeDownloadFIles();
+		void DrawToolbar() {
+			GUILayout.BeginHorizontal( EditorStyles.toolbar );
+			if( GUILayout.Button( s_styles.IconSetting, EditorStyles.toolbarButton ) ) {
+				EditorApplication.ExecuteMenuItem( "Edit/Preferences..." );
+			}
+			EditorGUI.BeginChangeCheck();
+			if( E.i.urls.Count == 0 ) {
+				//GUILayout.Label( new GUIContent( "Missing URL", s_styles.IconInfo ), EditorStyles.toolbarButton );
+			}
+			else {
+				m_selectURL = EditorGUILayout.Popup( m_selectURL, E.i.urls.Select( x => GetFileNameWithoutExtension( x ) ).ToArray(), EditorStyles.toolbarDropDown );
+			}
+
+			if( EditorGUI.EndChangeCheck()  ) {
+				MakeDownloadList();
+				ReadJson();
+				indexChanged = true;
+			}
+			GUILayout.FlexibleSpace();
+
+			if( GUILayout.Button( "Get Releases Latest", EditorStyles.toolbarButton ) ) {
+				GetReleasesLatest( GetCurrentURL() );
+			}
+
+			GUILayout.EndHorizontal();
 		}
 
 
 		void DrawGUI() {
-			if( s_styles == null ) s_styles = new Styles();
+			E.Load();
 
-			var info = ParseURL( urls[ m_selectURL ] );
+			if( s_styles == null ) {
+				s_styles = new Styles();
+				MakeDownloadList();
+				ReadJson();
+			}
 
+			DrawToolbar();
+
+			var info = ParseURL( GetCurrentURL() );
+
+			if( info == null ) {
+				EditorGUILayout.HelpBox( "Set URL from preferences", MessageType.Info );
+				return;
+			}
+
+			
 			using( new GUILayout.HorizontalScope() ) {
-				EditorGUI.BeginChangeCheck();
-				m_selectURL = EditorGUILayout.Popup( m_selectURL, urls.Select( x => GetFileNameWithoutExtension( x ) ).ToArray() );
-				if( EditorGUI.EndChangeCheck() ) {
-					MakeDownloadFIles();
-					ReadJson();
+				bool force = false;
+				if( indexChanged ) {
+					if( m_js == null ) {
+						indexChanged = false;
+						force = true;
+					}
 				}
-
-				if( GUILayout.Button( "Get Releases Latest" ) ) {
-					m_js = null;
-					m_js = GetReleasesLatest( urls[ m_selectURL ] );
-					SaveJson( m_js );
+				if( /*GUILayout.Button( "Get Releases Latest" ) ||*/ force ) {
+					Debug.Log( "Get Releases Latest" );
+					
+					GetReleasesLatest( GetCurrentURL() );
 				}
 			}
 
@@ -203,7 +312,7 @@ namespace Hananoki.GitHubDownload {
 					foreach( var asset in m_js.assets ) {
 						var fname = GetFileName( asset.browser_download_url );
 						if( GUILayout.Button( new GUIContent( fname, s_styles.Icon ), s_styles.ExposablePopupItem, GUILayout.ExpandWidth( false ) ) ) {
-							DownloadRelease( asset.browser_download_url, info[ 0 ], info[ 1 ], m_js.tag_name );
+							DownloadFile( asset.browser_download_url, info[ 0 ], info[ 1 ], m_js.tag_name );
 						}
 					}
 
@@ -224,6 +333,22 @@ namespace Hananoki.GitHubDownload {
 						AssetDatabase.ImportPackage( Directory.GetFiles( p )[ 0 ] , true);
 					}
 				}
+			}
+
+			
+			if( networking ) {
+				var last = GUILayoutUtility.GetLastRect();
+				var y = last.y + last.height - 20;
+				last.y = y;
+				last.height = 20;
+				//EditorGUI.DrawRect( last, new Color( 0, 0, 1, 0.5f ) );
+				var cont = new GUIContent( networkingMsg, s_styles.IconWaitSpin[ m_count ] );
+				last.width = EditorStyles.label.CalcSize( cont ).x;
+				last.x += 4;
+				last.width += 4;
+				last.y -= 4;
+				EditorGUI.DrawRect( last, new Color( 1, 1, 1, 0.5f ) );
+				GUI.Label( last, cont );
 			}
 		}
 

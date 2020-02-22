@@ -1,5 +1,8 @@
 # GitHubDownload
 
+[English](https://translate.google.com/translate?sl=ja&tl=en&u=https://github.com/hananoki/GitHubDownload) (by Google Translate)
+
+
 ## これは何？
 
 GithubのReleaseからファイルをダウンロードしてきます  
