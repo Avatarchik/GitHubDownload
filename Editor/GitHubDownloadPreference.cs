@@ -17,8 +17,8 @@ namespace Hananoki.GitHubDownload {
 			public Texture2D ol_minus;
 			public Texture2D Favorite;
 			public Styles() {
-				ol_plus = Resources.FindObjectsOfTypeAll<Texture2D>().Where( x => x.name == "ol_plus" ).ToArray()[ 0 ];
-				ol_minus = Resources.FindObjectsOfTypeAll<Texture2D>().Where( x => x.name == "ol_minus" ).ToArray()[ 0 ];
+				ol_plus =  AssetDatabase.LoadAssetAtPath<Texture2D>(AssetDatabase.GUIDToAssetPath( "ad645bf147d15d64f9bfd8d9261df17b" ));
+				ol_minus = AssetDatabase.LoadAssetAtPath<Texture2D>( AssetDatabase.GUIDToAssetPath( "ea88f29401a564148a8356c8a9141177" ) );
 				Favorite = EditorGUIUtility.FindTexture( "Favorite" );
 #if UNITY_2019_3_OR_NEWER
 				IconButton = new GUIStyle( "IconButton" );

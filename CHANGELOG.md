@@ -1,5 +1,10 @@
 # GitHubDownload
 
+## [0.3.2] - 2020-02-22
+
+## Fixed
+- Fixed loading of icon resources
+
 ## [0.3.1] - 2020-02-22
 
 ### Added
