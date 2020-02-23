@@ -11,24 +11,16 @@ namespace Hananoki.GitHubDownload {
 
 	public class GitHubDownloadPreference {
 		public class Styles {
-			public GUIStyle IconButton;
+			//public GUIStyle IconButton;
 			public Texture2D ol_plus;
 			public Texture2D ol_minus;
 			public Texture2D Favorite;
+			public Texture2D IconSetting;
 			public Styles() {
 				ol_plus =  AssetDatabase.LoadAssetAtPath<Texture2D>(AssetDatabase.GUIDToAssetPath( "ad645bf147d15d64f9bfd8d9261df17b" ));
 				ol_minus = AssetDatabase.LoadAssetAtPath<Texture2D>( AssetDatabase.GUIDToAssetPath( "ea88f29401a564148a8356c8a9141177" ) );
 				Favorite = EditorGUIUtility.FindTexture( "Favorite" );
-#if UNITY_2019_3_OR_NEWER
-				IconButton = new GUIStyle( "IconButton" );
-#else
-				IconButton = new GUIStyle( "IconButton" );
-				IconButton.fixedWidth = IconButton.fixedHeight = 16;
-				IconButton.padding = new RectOffset( 0, 0, 0, 0 );
-				IconButton.margin = new RectOffset( 0, 0, 0, 0 );
-				IconButton.stretchWidth = false;
-				IconButton.stretchHeight = false;
-#endif
+				IconSetting = EditorGUIUtility.FindTexture( "SettingsIcon" );
 			}
 		}
 
@@ -40,52 +32,52 @@ namespace Hananoki.GitHubDownload {
 
 
 
-		static ReorderableList MakeRL() {
-			var r = new ReorderableList( E.i.urls, typeof( string ) );
+		//static ReorderableList MakeRL() {
+		//	var r = new ReorderableList( E.i.urls, typeof( string ) );
 
-			r.drawHeaderCallback = ( rect ) => {
-				EditorGUI.LabelField( rect, "SceneHierarchyWindow - SearchFilter" );
-			};
+		//	r.drawHeaderCallback = ( rect ) => {
+		//		EditorGUI.LabelField( rect, "SceneHierarchyWindow - SearchFilter" );
+		//	};
 
-			r.onAddCallback = ( rect ) => {
-				if( E.i.urls.Count == 0 ) {
-					E.i.urls.Add( "" );
-				}
-				else {
-					E.i.urls.Add( E.i.urls[ r.count - 1 ] );
-				}
-			};
+		//	r.onAddCallback = ( rect ) => {
+		//		if( E.i.urls.Count == 0 ) {
+		//			E.i.urls.Add( "" );
+		//		}
+		//		else {
+		//			E.i.urls.Add( E.i.urls[ r.count - 1 ] );
+		//		}
+		//	};
 
-			r.drawElementCallback = ( rect, index, isActive, isFocused ) => {
-				EditorGUI.BeginChangeCheck();
-				var p = E.i.urls[ index ];
-				var w = rect.width;
-				var x = rect.x;
-				rect.y += 1;
-				//rect.height = EditorGUIUtility.singleLineHeight;
-				//rect.width = w * 0.20f;
-				//p.searchMode = (USceneHierarchyWindow.SearchMode) EditorGUI.EnumPopup( rect, p.searchMode, "MiniPopup" );
+		//	r.drawElementCallback = ( rect, index, isActive, isFocused ) => {
+		//		EditorGUI.BeginChangeCheck();
+		//		var p = E.i.urls[ index ];
+		//		var w = rect.width;
+		//		var x = rect.x;
+		//		rect.y += 1;
+		//		//rect.height = EditorGUIUtility.singleLineHeight;
+		//		//rect.width = w * 0.20f;
+		//		//p.searchMode = (USceneHierarchyWindow.SearchMode) EditorGUI.EnumPopup( rect, p.searchMode, "MiniPopup" );
 
-				//rect.x = x + w * 0.20f;
-				//rect.width = w * 0.80f;
-				E.i.urls[ index ] = EditorGUI.TextField( rect, p );
+		//		//rect.x = x + w * 0.20f;
+		//		//rect.width = w * 0.80f;
+		//		E.i.urls[ index ] = EditorGUI.TextField( rect, p );
 
-				//rect.x = x + w * 0.5f;
-				//rect.width = w * 0.5f;
+		//		//rect.x = x + w * 0.5f;
+		//		//rect.width = w * 0.5f;
 
-				//rect.x += 2;
-				//p.exec = EditorGUI.TextField( rect, p.exec );
-				//if( EditorGUI.EndChangeCheck() ) {
-				//	s_changed = true;
-				//}
-				//rect.x += rect.width;
-				//rect.width = 16;
+		//		//rect.x += 2;
+		//		//p.exec = EditorGUI.TextField( rect, p.exec );
+		//		//if( EditorGUI.EndChangeCheck() ) {
+		//		//	s_changed = true;
+		//		//}
+		//		//rect.x += rect.width;
+		//		//rect.width = 16;
 
-			};
-			//r.elementHeight = EditorGUIUtility.singleLineHeight;
+		//	};
+		//	//r.elementHeight = EditorGUIUtility.singleLineHeight;
 
-			return r;
-		}
+		//	return r;
+		//}
 
 
 		static void DrawCommandTable( ReorderableList r ) {
@@ -136,13 +128,13 @@ namespace Hananoki.GitHubDownload {
 			E.Load();
 			if( s_styles == null ) s_styles = new Styles();
 
-			if( E.i.urls == null ) {
-				E.i.urls = new List<string>();
+			if( E.i.gitUrls == null ) {
+				E.i.gitUrls = new List<E.GitURL>();
 				s_changed = true;
 			}
-			if( s_rl == null ) {
-				s_rl = MakeRL();
-			}
+			//if( s_rl == null ) {
+			//	s_rl = MakeRL();
+			//}
 
 			EditorGUI.BeginChangeCheck();
 
@@ -153,18 +145,18 @@ namespace Hananoki.GitHubDownload {
 				if( EditorGUI.EndChangeCheck()) {
 					E.i.adb_exe = _t;
 				}
-				var r = GUILayoutUtility.GetRect( new GUIContent( s_styles.ol_plus ), s_styles.IconButton );
+				var r = GUILayoutUtility.GetRect( new GUIContent( s_styles.ol_plus ), GUIHelper.Styles.iconButton );
 				r.y += 3;
-				if( GUI.Button( r, s_styles.ol_plus, s_styles.IconButton ) ) {
+				if( GUIHelper.IconButton( r, s_styles.ol_plus ) ) {
 					var a = CheckURL( E.i.adb_exe );
 					if( !string.IsNullOrEmpty( a ) ) {
 						E.AddURLs( a );
 						GitHubDownloadWindow.Repaint();
 					}
 				}
-				r = GUILayoutUtility.GetRect( new GUIContent( s_styles.Favorite ), s_styles.IconButton );
+				r = GUILayoutUtility.GetRect( new GUIContent( s_styles.Favorite ), GUIHelper.Styles.iconButton );
 				r.y += 3;
-				if( GUI.Button( r, s_styles.Favorite, s_styles.IconButton ) ) {
+				if( GUIHelper.IconButton( r, s_styles.Favorite ) ) {
 					OpenFilePanel();
 				}
 			}
@@ -173,37 +165,24 @@ namespace Hananoki.GitHubDownload {
 
 			int i = 0;
 			int delIndex = -1;
-			foreach( var s in E.i.urls ) {
+
+			foreach( var s in E.i.gitUrls ) {
 				using( new GUILayout.HorizontalScope( EditorStyles.helpBox ) ) {
-					GUILayout.Label( s );
-					if( GUILayout.Button( s_styles.ol_minus, s_styles.IconButton ) ) {
+					GUILayout.Label( s.url );
+					if( GUIHelper.IconButton( s_styles.IconSetting ) ) {
+						GitURLConfig.Open(s);
+					}
+					if( GUIHelper.IconButton( s_styles.ol_minus ) ) {
 						delIndex = i;
 					}
 				}
 				i++;
 			}
 			if( 0 <= delIndex ) {
-				E.i.urls.RemoveAt( delIndex );
+				E.i.gitUrls.RemoveAt( delIndex );
 				s_changed = true;
 			}
-			//DrawCommandTable( s_rl );
 
-			
-
-			//using( var sc = new GUILayout.ScrollViewScope( m_scroll2 ) ) {
-			//	m_scroll2 = sc.scrollPosition;
-
-			//	var targetGroupList = PlatformUtils.GetSupportList();
-
-			//	foreach( var t in targetGroupList ) {
-			//		EditorGUI.BeginChangeCheck();
-			//		var _b = HEditorGUILayout.ToggleLeft( P.GetPlatform( t ).enable, t.Icon(), t.GetName() );
-			//		if( EditorGUI.EndChangeCheck() ) {
-			//			P.GetPlatform( t ).enable = _b;
-			//			BuildManagerWindow.ChangeActiveTarget();
-			//		}
-			//	}
-			//}
 
 			if( EditorGUI.EndChangeCheck() || s_changed ) {
 				E.Save();

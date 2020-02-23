@@ -14,9 +14,26 @@ namespace Hananoki.GitHubDownload {
 
 		public List<string> urls;
 
+		[System.Serializable]
+		public class GitURL {
+			public string url;
+			public bool enablePackage;
+			public string branchName;
+			public string packageName;
+			public string version;
+			public GitURL( string url ) {
+				this.url = url;
+				enablePackage = false;
+				branchName = "";
+				packageName = "";
+				version = "";
+			}
+		}
+		public List<GitURL> gitUrls;
+
 		public string adb_exe;
 		public string opendir;
-		//public int fold;
+
 		public int showMode;
 
 		public static GitHubDownloadSettingsEditor i;
@@ -37,15 +54,20 @@ namespace Hananoki.GitHubDownload {
 
 
 		public GitHubDownloadSettingsEditor() {
-			
+
 		}
 
 		public static void AddURLs( params string[] urls ) {
-			i.urls.AddRange( urls );
-			i.urls = i.urls.Distinct().ToList();
+			//i.urls.AddRange( urls );
+			//i.gitUrls = i.gitUrls.Distinct().ToList();
+			foreach( var p in urls ) i.gitUrls.Add( new GitURL( p ) );
+			i.gitUrls = i.gitUrls.Distinct( x => x.url ).ToList();
 			Save();
 		}
 
+		public static GitURL GetData( string url ) {
+			return i.gitUrls.Find( x => x.url == url );
+		}
 
 		public static void Load() {
 			unityPreferencesFolder = InternalEditorUtility.unityPreferencesFolder;
@@ -55,7 +77,17 @@ namespace Hananoki.GitHubDownload {
 				i = new GitHubDownloadSettingsEditor();
 				Save();
 			}
+			if( i.urls != null ) {
+				if( 1 <= i.urls.Count ) {
+					i.gitUrls = new List<GitURL>();
+					foreach( var p in i.urls ) i.gitUrls.Add( new GitURL( p ) );
+					i.urls = null;
+					Debug.Log( "Convert GitURL" );
+					Save();
+				}
+			}
 		}
+
 
 		public static void Save() {
 			Set( PackageInfo.editorPrefName, i );
@@ -71,8 +103,35 @@ namespace Hananoki.GitHubDownload {
 		}
 
 		public static void Set( string name, GitHubDownloadSettingsEditor data ) {
-			string json = JsonUtility.ToJson( data );
+			string json = JsonUtility.ToJson( data , true);
 			EditorPrefs.SetString( name, json );
 		}
 	}
+
+
+	public static class IEnumerableExtensions {
+		private sealed class CommonSelector<T, TKey> : IEqualityComparer<T> {
+			private Func<T, TKey> m_selector;
+
+			public CommonSelector( Func<T, TKey> selector ) {
+				m_selector = selector;
+			}
+
+			public bool Equals( T x, T y ) {
+				return m_selector( x ).Equals( m_selector( y ) );
+			}
+
+			public int GetHashCode( T obj ) {
+				return m_selector( obj ).GetHashCode();
+			}
+		}
+
+		public static IEnumerable<T> Distinct<T, TKey>(
+				this IEnumerable<T> source,
+				Func<T, TKey> selector
+		) {
+			return source.Distinct( new CommonSelector<T, TKey>( selector ) );
+		}
+	}
+
 }

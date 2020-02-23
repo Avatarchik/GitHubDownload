@@ -110,14 +110,14 @@ namespace Hananoki.GitHubDownload {
 
 
 		bool AdjustSelectURL() {
-			if( E.i.urls.Count == 0 ) return false;
+			if( E.i.gitUrls.Count == 0 ) return false;
 			if( m_selectURL < 0 ) {
 				m_selectURL = 0;
 				indexChanged = true;
 				return true;
 			}
-			if( E.i.urls.Count <= m_selectURL ) {
-				m_selectURL = E.i.urls.Count - 1;
+			if( E.i.gitUrls.Count <= m_selectURL ) {
+				m_selectURL = E.i.gitUrls.Count - 1;
 				indexChanged = true;
 				return true;
 			}
@@ -126,11 +126,11 @@ namespace Hananoki.GitHubDownload {
 
 
 		string GetCurrentURL() {
-			if( E.i.urls.Count == 0 ) return string.Empty;
+			if( E.i.gitUrls.Count == 0 ) return string.Empty;
 
 			AdjustSelectURL();
 
-			return E.i.urls[ m_selectURL ];
+			return E.i.gitUrls[ m_selectURL ].url;
 		}
 
 
@@ -303,9 +303,9 @@ namespace Hananoki.GitHubDownload {
 			}
 			EditorGUI.BeginChangeCheck();
 			bool force = false;
-			if( 0 < E.i.urls.Count ) {
+			if( 0 < E.i.gitUrls.Count ) {
 				AdjustSelectURL();
-				m_selectURL = EditorGUILayout.Popup( m_selectURL, E.i.urls.Select( x => GetFileNameWithoutExtension( x ) ).ToArray(), s_styles.toolbarDropDown );
+				m_selectURL = EditorGUILayout.Popup( m_selectURL, E.i.gitUrls.Select( x => GetFileNameWithoutExtension( x.url ) ).ToArray(), s_styles.toolbarDropDown );
 			}
 			E.i.showMode = EditorGUILayout.Popup( E.i.showMode, showRelease, s_styles.toolbarDropDown, GUILayout.Width( 120) );
 			if( EditorGUI.EndChangeCheck() || force ) {
@@ -318,11 +318,13 @@ namespace Hananoki.GitHubDownload {
 			if( GUILayout.Button( s_styles.IconRefresh, EditorStyles.toolbarButton ) ) {
 				GetReleasesResponse( GetCurrentURL(), enableLatest );
 			}
-
 			GUILayout.FlexibleSpace();
-
+			if( GUILayout.Button( "Package Manager", EditorStyles.toolbarButton ) ) {
+				EditorApplication.ExecuteMenuItem( "Window/Package Manager" );
+			}
 			GUILayout.EndHorizontal();
 		}
+
 
 
 		void DrawGUI() {
@@ -371,7 +373,18 @@ namespace Hananoki.GitHubDownload {
 						}
 					}
 					else {
+						var data = E.GetData( GetCurrentURL() );
+						if( data.enablePackage ) {
+							using( new GUILayout.HorizontalScope( s_styles.helpBox ) ) {
+								if( GUILayout.Button( new GUIContent( $"Install Package - {data.packageName} - {data.version}", s_styles.Icon ), s_styles.ExposablePopupItem, GUILayout.ExpandWidth( false ) ) ) {
+									gitURL = data;
+									EditorApplication.update += DeleyPackageInstall;
+								}
+							}
+							GUILayout.Space( 4 );
+						}
 						foreach( var p in m_js ) {
+							
 							using( new GUILayout.VerticalScope( s_styles.helpBox ) ) {
 								using( new GUILayout.HorizontalScope() ) {
 									p.toggle = GUIHelper.Foldout( p.toggle, $"{p.tag_name}" );
@@ -386,7 +399,10 @@ namespace Hananoki.GitHubDownload {
 												rc.y += 1;
 #endif
 												if( GUIHelper.IconButton( rc, s_styles.IconSceneAsset ) ) {
-													AssetDatabase.ImportPackage( fname, true );
+													s_packagePath =  fname;
+													s_interactive = true;
+													EditorApplication.update += DeleyImportPackage;
+													//AssetDatabase.ImportPackage( s_packagePath, s_interactive );
 												}
 											}
 										}
@@ -446,6 +462,37 @@ namespace Hananoki.GitHubDownload {
 			}
 			catch( Exception e ) {
 				Debug.LogException(e);
+			}
+		}
+
+		string s_packagePath;
+		bool s_interactive;
+		void DeleyImportPackage( ) {
+			EditorApplication.update -= DeleyImportPackage;
+			AssetDatabase.ImportPackage( s_packagePath, s_interactive );
+		}
+
+		E.GitURL gitURL;
+
+		void DeleyPackageInstall() {
+			EditorApplication.update -= DeleyPackageInstall;
+			var dictionary = ManifestJson.Deserialize( File.ReadAllText( "Packages/manifest.json" ) ) as Dictionary<string, object>;
+			var dic = (System.Collections.IDictionary) dictionary[ "dependencies" ];
+			//foreach( object current in dic.Keys ) {
+			//	Debug.Log( current as string);
+			//}
+			if( !dic.Contains( gitURL.packageName ) ) {
+				if(string.IsNullOrEmpty( gitURL.branchName ) ) {
+					dic.Add( gitURL.packageName, $"{GetCurrentURL()}" );
+				}
+				else {
+					dic.Add( gitURL.packageName, $"{GetCurrentURL()}#{gitURL.branchName}" );
+				}
+				File.WriteAllText( "Packages/manifest.json", ManifestJson.Serialize( dictionary, true ) );
+				AssetDatabase.Refresh();
+			}
+			else {
+				EditorUtility.DisplayDialog( "Info", "Package installed", "OK" );
 			}
 		}
 	}

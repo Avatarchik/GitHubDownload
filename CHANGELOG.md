@@ -1,5 +1,16 @@
 # GitHubDownload
 
+## [0.5.0] - 2020-02-23
+
+### Added
+- Ability to add packages to "manifest.json"
+
+### Changed
+- "Package Manager" can be opened from the toolbar.
+
+### Fixed
+- Fixed ImportPackage「EndLayoutGroup: BeginLayoutGroup must be called first.」
+
 ## [0.4.1] - 2020-02-23
 
 ### Changed
