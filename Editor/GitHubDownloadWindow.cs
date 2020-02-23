@@ -201,46 +201,43 @@ namespace Hananoki.GitHubDownload {
 		}
 
 
-		async void GetReleasesResponse( string name, string repoName, bool latest ) {
-			string content = string.Empty;
+		void GetReleasesResponse( string name, string repoName, bool latest ) {
+			//string content = string.Empty;
 			m_js = new List<ReleaseJson>();
 
-			await Task.Run( () => {
-				try {
-					using( new RequestStatusScope(  latest ? "Downloading Release Latest ..." : "Downloading Release ..." ) )
-					using( var client = new WebClient() ) {
-						var url = $"{githubURL}/{name}/{repoName}/releases";
-						if( latest ) {
-							url += "/latest";
-						}
-						client.Headers.Add( "User-Agent", "Nothing" );
-						//System.Threading.Thread.Sleep( 10000 );
-						content = client.DownloadString( url );
-					}
-
-					if( string.IsNullOrEmpty( content ) ) return;
-
-					
+			try {
+				//using( new RequestStatusScope( latest ? "Downloading Release Latest ..." : "Downloading Release ..." ) )
+				using( var wc = new WebClient() ) {
+					var url = $"{githubURL}/{name}/{repoName}/releases";
 					if( latest ) {
-						var rj = JsonUtility.FromJson<ReleaseJson>( content );
-						if( rj == null ) return;
-						m_js.Add( rj );
+						url += "/latest";
 					}
-					else {
-						var content2 = "{\"Items\":" + content + "}";
-						var jss = JsonHelper.FromJson<ReleaseJson>( content2 );
-						m_js.AddRange( jss );
-					}
-					WriteWebResponseToFile( content, latest );
-					
+					wc.Headers.Add( "User-Agent", "Nothing" );
+					wc.DownloadStringCompleted += ( sender, e ) => {
+						var content = e.Result;
+						if( string.IsNullOrEmpty( content ) ) return;
+
+						if( latest ) {
+							var rj = JsonUtility.FromJson<ReleaseJson>( content );
+							if( rj == null ) return;
+							m_js.Add( rj );
+						}
+						else {
+							var content2 = "{\"Items\":" + content + "}";
+							var jss = JsonHelper.FromJson<ReleaseJson>( content2 );
+							m_js.AddRange( jss );
+						}
+						WriteWebResponseToFile( content, latest );
+						Repaint();
+					};
+					wc.DownloadStringAsync( new Uri( url ) );
 
 				}
-				catch( Exception e ) {
-					Debug.LogException( e );
-					RequestStatus.SetError( e );
-				}
-			} );
-			Repaint();
+			}
+			catch( Exception e ) {
+				Debug.LogException( e );
+				//RequestStatus.SetError( e );
+			}
 		}
 
 
@@ -250,37 +247,50 @@ namespace Hananoki.GitHubDownload {
 		}
 
 
-		public async void DownloadFile( string url, string name, string repoName, string tag, string extention = "" ) {
+		public void DownloadFile( string url, string name, string repoName, string tag, string extention = "" ) {
+			if( RequestStatus.networking ) {
+				EditorUtility.DisplayDialog( "Warning", "No new downloads can be added during download","OK" );
+				return;
+			}
 			var outputDirectory = $"{E.gitHubCacheDirectory}/{name}/{repoName}/{tag}";
 
 			if( !Directory.Exists( outputDirectory ) ) {
 				Directory.CreateDirectory( outputDirectory );
 			}
 
-			await Task.Run( () => {
-				try {
-					string fname;
-					if( string.IsNullOrEmpty( extention ) ) {
-						fname = GetFileName( url );
-					}
-					else {
-						fname = $"{repoName}-{tag}{extention}";
-					}
-					//System.Threading.Thread.Sleep( 10000 );
-					using( new RequestStatusScope( "Download File " + GetFileName( url ) ) )
-					using( WebClient wc = new WebClient() ) {
-						wc.Headers.Add( "User-Agent", "Nothing" );
-						wc.DownloadFile( new Uri( url ), outputDirectory + "/" + fname );
-					}
+			try {
+				string fname;
+				if( string.IsNullOrEmpty( extention ) ) {
+					fname = GetFileName( url );
 				}
-				catch( Exception e ) {
-					Debug.LogException( e );
-					RequestStatus.SetError( e );
+				else {
+					fname = $"{repoName}-{tag}{extention}";
 				}
-			} );
+				//System.Threading.Thread.Sleep( 10000 );
+				//using( new RequestStatusScope( "Download File " + GetFileName( url ) ) )
 
-			MakeDownloadList();
-			Repaint();
+				using( WebClient wc = new WebClient() ) {
+					RequestStatus.Begin( $"Download File {GetFileName( url )}" );
+					wc.Headers.Add( "User-Agent", "Nothing" );
+					wc.DownloadProgressChanged += ( sender, e ) => {
+						//Debug.Log( "DownloadProgressChanged" );
+						//RequestStatus.networkingMsg = $"Download File {GetFileName( url )} {e.BytesReceived}of {e.TotalBytesToReceive} bytes. {e.ProgressPercentage} % complete...";
+						RequestStatus.networkingMsg = $"Download File {GetFileName( url )} {e.ProgressPercentage} %";
+					};
+					wc.DownloadFileCompleted += ( sender, e ) => {
+						//Debug.Log( "DownloadFile" );
+						RequestStatus.End();
+
+						MakeDownloadList();
+						Repaint();
+					};
+					wc.DownloadFileAsync( new Uri( url ), outputDirectory + "/" + fname );
+				}
+			}
+			catch( Exception e ) {
+				Debug.LogException( e );
+				RequestStatus.SetError( e );
+			}
 		}
 
 

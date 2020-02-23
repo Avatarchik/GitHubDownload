@@ -45,6 +45,17 @@ namespace Hananoki.GitHubDownload {
 				GitHubDownloadWindow.Repaint();
 			}
 		}
+
+		public static void Begin( string msg ="") {
+			RequestStatus.networking = true;
+			RequestStatus.networkError = false;
+			RequestStatus.networkingMsg = msg;
+			EditorApplication.update += RequestStatus.updateThreadSync;
+		}
+		public static void End() {
+			RequestStatus.networking = false;
+			EditorApplication.update -= RequestStatus.updateThreadSync;
+		}
 	}
 
 

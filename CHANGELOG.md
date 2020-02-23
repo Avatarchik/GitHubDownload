@@ -1,5 +1,11 @@
 # GitHubDownload
 
+## [0.4.1] - 2020-02-23
+
+### Changed
+- Show the download progress
+- Only one download at a time
+
 ## [0.4.0] - 2020-02-23
 
 ### Added
