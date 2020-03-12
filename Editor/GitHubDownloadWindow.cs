@@ -8,6 +8,7 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using UnityEditor;
 using UnityEngine;
+using System.IO.Compression;
 
 using static System.IO.Path;
 
@@ -31,7 +32,9 @@ namespace Hananoki.GitHubDownload {
 			public GUIStyle helpBox;
 			public GUIStyle toolbarDropDown;
 
-			public Texture2D Icon;
+			public Texture2D IconPackage;
+			public Texture2D IconIndicatorOFF;
+			public Texture2D IconIndicatorON;
 			public Texture2D IconSetting;
 			public Texture2D IconError;
 			public Texture2D IconInfo;
@@ -50,11 +53,15 @@ namespace Hananoki.GitHubDownload {
 				helpBox.fontSize = EditorStyles.boldLabel.fontSize;
 				IconError = EditorGUIUtility.FindTexture( "console.erroricon.sml" );
 				IconInfo = EditorGUIUtility.FindTexture( "console.infoicon.sml" );
-				Icon = EditorGUIUtility.FindTexture( "winbtn_mac_inact" );
-				IconWaitSpin = Resources.FindObjectsOfTypeAll<Texture2D>().Where( x => x.name.Contains( "WaitSpin" )).OrderBy( x => x.name ).ToArray();
+
+				IconPackage = EditorGUIUtility.FindTexture( "winbtn_mac_inact" );
+				IconIndicatorOFF = EditorGUIUtility.FindTexture( "lightMeter/lightRim" );
+				IconIndicatorON = EditorGUIUtility.FindTexture( "lightMeter/greenLight" );
+
+				IconWaitSpin = Resources.FindObjectsOfTypeAll<Texture2D>().Where( x => x.name.Contains( "WaitSpin" ) ).OrderBy( x => x.name ).ToArray();
 				IconSetting = EditorGUIUtility.FindTexture( "SettingsIcon" );
 				IconRefresh = EditorGUIUtility.FindTexture( "Refresh" );
-				IconSceneAsset = Resources.FindObjectsOfTypeAll<Texture2D>().Where( x => x.name == "SceneAsset Icon" ).ToArray()[0];
+				IconSceneAsset = Resources.FindObjectsOfTypeAll<Texture2D>().Where( x => x.name == "SceneAsset Icon" ).ToArray()[ 0 ];
 
 				toolbarDropDown = new GUIStyle( EditorStyles.toolbarDropDown );
 				toolbarDropDown.alignment = TextAnchor.MiddleCenter;
@@ -73,7 +80,7 @@ namespace Hananoki.GitHubDownload {
 		bool enableLatest;
 
 		string[] showRelease = { "Releases", "Latest Releases" };
-		
+
 
 
 		[MenuItem( "Window/GitHubDownload" )]
@@ -83,7 +90,7 @@ namespace Hananoki.GitHubDownload {
 		}
 
 		new public static void Repaint() {
-			((EditorWindow) s_window )?.Repaint();
+			( (EditorWindow) s_window )?.Repaint();
 		}
 
 		void OnEnable() {
@@ -106,6 +113,11 @@ namespace Hananoki.GitHubDownload {
 			string[] ss = m[ 0 ].Groups[ 2 ].Value.Split( '/' );
 
 			return new string[] { ss[ 0 ], GetFileNameWithoutExtension( ss[ 1 ] ) };
+		}
+
+		string ParseURLToPopup( string gitURL ) {
+			var ss = ParseURL( gitURL );
+			return $"{ss[ 1 ]} : {ss[ 0 ]}";
 		}
 
 
@@ -161,10 +173,10 @@ namespace Hananoki.GitHubDownload {
 				opath = $"{opath}/releases.json";
 			}
 
-			
+
 
 			using( var st = new StreamWriter( opath ) ) {
-				st.Write(  content  );
+				st.Write( content );
 			}
 		}
 
@@ -247,9 +259,65 @@ namespace Hananoki.GitHubDownload {
 		}
 
 
+		public Texture2D GetDownloadIndicatorIcon( string url, string name, string repoName, string tag, string extention = "" ) {
+			if( IsDownloaded( url, name, repoName, tag, extention ) ) {
+				return s_styles.IconIndicatorON;
+			}
+			return s_styles.IconIndicatorOFF;
+		}
+
+
+		public string GetDownloadFileName( string url, string name, string repoName, string tag, string extention = "" ) {
+			var outputDirectory = $"{E.gitHubCacheDirectory}/{name}/{repoName}/{tag}";
+			string fname;
+			if( string.IsNullOrEmpty( extention ) ) {
+				fname = GetFileName( url );
+			}
+			else {
+				fname = $"{repoName}-{tag}{extention}";
+			}
+			return outputDirectory + "/" + fname;
+		}
+
+
+		public bool IsDownloaded( string url, string name, string repoName, string tag, string extention = "" ) {
+			return File.Exists( GetDownloadFileName( url, name, repoName, tag, extention ) );
+		}
+
+		public void GUIDownloadButton( string url, string name, string repoName, string tag, string extention = "" ) {
+			GUIDownloadButton( GetFileName( url ), url, name, repoName, tag, extention );
+		}
+
+		public void GUIDownloadButton( string title, string url, string name, string repoName, string tag, string extention = "" ) {
+			var ico = GetDownloadIndicatorIcon( url, name, repoName, tag, extention );
+			if( GUILayout.Button( new GUIContent( title, ico ), s_styles.ExposablePopupItem, GUILayout.ExpandWidth( false ) ) ) {
+				if( IsDownloaded( url, name, repoName, tag, extention ) ) {
+					var m = new GenericMenu();
+					m.AddItem( new GUIContent( "Re-download" ), false, () => {
+						DownloadFile( url, name, repoName, tag, extention );
+					} );
+					m.AddItem( new GUIContent( "Run in shell" ), false, () => {
+						var p = new System.Diagnostics.Process();
+						p.StartInfo.FileName = GetDownloadFileName( url, name, repoName, tag, extention );
+						p.Start();
+					} );
+
+					m.DropDown( new Rect( Event.current.mousePosition, new Vector2( 0, 0 ) ) );
+				}
+				else {
+					var m = new GenericMenu();
+					m.AddItem( new GUIContent( "Download" ), false, () => {
+						DownloadFile( url, name, repoName, tag, extention );
+					} );
+					m.DropDown( new Rect( Event.current.mousePosition, new Vector2( 0, 0 ) ) );
+				}
+			}
+		}
+
+
 		public void DownloadFile( string url, string name, string repoName, string tag, string extention = "" ) {
 			if( RequestStatus.networking ) {
-				EditorUtility.DisplayDialog( "Warning", "No new downloads can be added during download","OK" );
+				EditorUtility.DisplayDialog( "Warning", "No new downloads can be added during download", "OK" );
 				return;
 			}
 			var outputDirectory = $"{E.gitHubCacheDirectory}/{name}/{repoName}/{tag}";
@@ -294,33 +362,60 @@ namespace Hananoki.GitHubDownload {
 		}
 
 
+		void Refresh() {
+			enableLatest = E.i.showMode != 0;
+			MakeDownloadList();
+			ReadWebResponseToFile( enableLatest );
+			indexChanged = true;
+			RequestStatus.Reset();
+		}
 
 
 		void DrawToolbar() {
 			GUILayout.BeginHorizontal( EditorStyles.toolbar );
-			if( GUILayout.Button( s_styles.IconSetting, EditorStyles.toolbarButton ) ) {
-				EditorApplication.ExecuteMenuItem( "Edit/Preferences..." );
-			}
-			EditorGUI.BeginChangeCheck();
-			bool force = false;
-			if( 0 < E.i.gitUrls.Count ) {
-				AdjustSelectURL();
-				m_selectURL = EditorGUILayout.Popup( m_selectURL, E.i.gitUrls.Select( x => GetFileNameWithoutExtension( x.url ) ).ToArray(), s_styles.toolbarDropDown );
-			}
-			E.i.showMode = EditorGUILayout.Popup( E.i.showMode, showRelease, s_styles.toolbarDropDown, GUILayout.Width( 120) );
-			if( EditorGUI.EndChangeCheck() || force ) {
-				enableLatest = E.i.showMode != 0;
-				MakeDownloadList();
-				ReadWebResponseToFile( enableLatest );
-				indexChanged = true;
-				RequestStatus.Reset();
-			}
-			if( GUILayout.Button( s_styles.IconRefresh, EditorStyles.toolbarButton ) ) {
-				GetReleasesResponse( GetCurrentURL(), enableLatest );
-			}
-			GUILayout.FlexibleSpace();
-			if( GUILayout.Button( "Package Manager", EditorStyles.toolbarButton ) ) {
-				EditorApplication.ExecuteMenuItem( "Window/Package Manager" );
+			{
+				if( GUILayout.Button( s_styles.IconSetting, EditorStyles.toolbarButton ) ) {
+					EditorApplication.ExecuteMenuItem( "Edit/Preferences..." );
+				}
+				EditorGUI.BeginChangeCheck();
+				bool force = false;
+
+				if( 0 < E.i.gitUrls.Count ) {
+					AdjustSelectURL();
+
+					var a = E.i.gitUrls.Aggregate( "", ( max, cur ) => max.Length > cur.url.Length ? max : cur.url );
+					//m_selectURL = EditorGUILayout.Popup( m_selectURL, E.i.gitUrls.Select( x => ParseURLToPopup( x.url ) ).ToArray(), s_styles.toolbarDropDown );
+					var content = new GUIContent( GetFileNameWithoutExtension( a ) );
+					var size = s_styles.toolbarDropDown.CalcSize( content );
+					var rc = GUILayoutUtility.GetRect( content, s_styles.toolbarDropDown, GUILayout.Width( size.x + 16 ) );
+					if( rc.Contains( Event.current.mousePosition ) && Event.current.type == EventType.MouseDown && Event.current.button == 0 ) {
+						var m = new GenericMenu();
+						for( int i = 0; i < E.i.gitUrls.Count; i++ ) {
+							var p = E.i.gitUrls[ i ];
+							m.AddItem( new GUIContent( ParseURLToPopup( p.url ) ), false, ( idx ) => {
+								m_selectURL = (int) idx;
+								Refresh();
+							}, i );
+						}
+						m.DropDown( new Rect( rc.x, rc.y + 6, rc.width, 12 ) );
+						Event.current.Use();
+					}
+					GUI.Button( rc, GetFileNameWithoutExtension( E.i.gitUrls[ m_selectURL ].url ), s_styles.toolbarDropDown );
+				}
+
+				E.i.showMode = EditorGUILayout.Popup( E.i.showMode, showRelease, s_styles.toolbarDropDown, GUILayout.Width( 120 ) );
+
+				if( EditorGUI.EndChangeCheck() || force ) {
+					Refresh();
+				}
+
+				if( GUILayout.Button( s_styles.IconRefresh, EditorStyles.toolbarButton ) ) {
+					GetReleasesResponse( GetCurrentURL(), enableLatest );
+				}
+				GUILayout.FlexibleSpace();
+				if( GUILayout.Button( "Package Manager", EditorStyles.toolbarButton ) ) {
+					EditorApplication.ExecuteMenuItem( "Window/Package Manager" );
+				}
 			}
 			GUILayout.EndHorizontal();
 		}
@@ -344,7 +439,7 @@ namespace Hananoki.GitHubDownload {
 				EditorGUILayout.HelpBox( "Set URL from preferences", MessageType.Info );
 				return;
 			}
-			if( RequestStatus.networkError  ) {
+			if( RequestStatus.networkError ) {
 				EditorGUILayout.HelpBox( RequestStatus.networkingErrorMsg, MessageType.Error );
 				return;
 			}
@@ -353,13 +448,13 @@ namespace Hananoki.GitHubDownload {
 				bool force = false;
 				if( indexChanged ) {
 					indexChanged = false;
-					if( m_js == null || m_js.Count==0 ) {
+					if( m_js == null || m_js.Count == 0 ) {
 						force = true;
 					}
 				}
 				if( /*GUILayout.Button( "Get Releases Latest" ) ||*/ force ) {
 					//Debug.Log( "Get Releases Latest" );
-					
+
 					GetReleasesResponse( GetCurrentURL(), enableLatest );
 				}
 			}
@@ -376,7 +471,7 @@ namespace Hananoki.GitHubDownload {
 						var data = E.GetData( GetCurrentURL() );
 						if( data.enablePackage ) {
 							using( new GUILayout.HorizontalScope( s_styles.helpBox ) ) {
-								if( GUILayout.Button( new GUIContent( $"Install Package - {data.packageName} - {data.version}", s_styles.Icon ), s_styles.ExposablePopupItem, GUILayout.ExpandWidth( false ) ) ) {
+								if( GUILayout.Button( new GUIContent( $"Install Package - {data.packageName} - {data.version}", s_styles.IconPackage ), s_styles.ExposablePopupItem, GUILayout.ExpandWidth( false ) ) ) {
 									gitURL = data;
 									EditorApplication.update += DeleyPackageInstall;
 								}
@@ -384,7 +479,7 @@ namespace Hananoki.GitHubDownload {
 							GUILayout.Space( 4 );
 						}
 						foreach( var p in m_js ) {
-							
+
 							using( new GUILayout.VerticalScope( s_styles.helpBox ) ) {
 								using( new GUILayout.HorizontalScope() ) {
 									p.toggle = GUIHelper.Foldout( p.toggle, $"{p.tag_name}" );
@@ -399,7 +494,7 @@ namespace Hananoki.GitHubDownload {
 												rc.y += 1;
 #endif
 												if( GUIHelper.IconButton( rc, s_styles.IconSceneAsset ) ) {
-													s_packagePath =  fname;
+													s_packagePath = fname;
 													s_interactive = true;
 													EditorApplication.update += DeleyImportPackage;
 													//AssetDatabase.ImportPackage( s_packagePath, s_interactive );
@@ -413,23 +508,15 @@ namespace Hananoki.GitHubDownload {
 
 								EditorGUILayout.LabelField( p.body, s_styles.helpBox );
 
-								//var outputDirectory = $"{gitHubCacheDirectory}/{info[ 0 ]}/{info[ 1 ]}/{m_js.tag_name}";
 								foreach( var asset in p.assets ) {
-									var fname = GetFileName( asset.browser_download_url );
-									if( GUILayout.Button( new GUIContent( fname, s_styles.Icon ), s_styles.ExposablePopupItem, GUILayout.ExpandWidth( false ) ) ) {
-										DownloadFile( asset.browser_download_url, info[ 0 ], info[ 1 ], p.tag_name );
-									}
+									GUIDownloadButton( asset.browser_download_url, info[ 0 ], info[ 1 ], p.tag_name );
 								}
 
 								if( !string.IsNullOrEmpty( p.zipball_url ) ) {
-									if( GUILayout.Button( new GUIContent( "Source code (zip)", s_styles.Icon ), s_styles.ExposablePopupItem, GUILayout.ExpandWidth( false ) ) ) {
-										DownloadFile( p.zipball_url, info[ 0 ], info[ 1 ], p.tag_name, ".zip" );
-									}
+									GUIDownloadButton( "Source code (zip)", p.zipball_url, info[ 0 ], info[ 1 ], p.tag_name, ".zip" );
 								}
 								if( !string.IsNullOrEmpty( p.tarball_url ) ) {
-									if( GUILayout.Button( new GUIContent( "Source code (tar.gz)", s_styles.Icon ), s_styles.ExposablePopupItem, GUILayout.ExpandWidth( false ) ) ) {
-										DownloadFile( p.tarball_url, info[ 0 ], info[ 1 ], p.tag_name, ".tar.gz" );
-									}
+									GUIDownloadButton( "Source code (tar.gz)", p.tarball_url, info[ 0 ], info[ 1 ], p.tag_name, ".tar.gz" );
 								}
 							}
 						}
@@ -437,11 +524,11 @@ namespace Hananoki.GitHubDownload {
 
 				}
 			}
-			
+
 			if( RequestStatus.networking ) {
 				var last = GUILayoutUtility.GetLastRect();
 				last.height = 20;
-				
+
 				var cont = new GUIContent( RequestStatus.networkingMsg, s_styles.IconWaitSpin[ RequestStatus.m_count ] );
 				last.width = EditorStyles.label.CalcSize( cont ).x;
 				last.x += 4;
@@ -461,13 +548,13 @@ namespace Hananoki.GitHubDownload {
 				DrawGUI();
 			}
 			catch( Exception e ) {
-				Debug.LogException(e);
+				Debug.LogException( e );
 			}
 		}
 
 		string s_packagePath;
 		bool s_interactive;
-		void DeleyImportPackage( ) {
+		void DeleyImportPackage() {
 			EditorApplication.update -= DeleyImportPackage;
 			AssetDatabase.ImportPackage( s_packagePath, s_interactive );
 		}
@@ -482,7 +569,7 @@ namespace Hananoki.GitHubDownload {
 			//	Debug.Log( current as string);
 			//}
 			if( !dic.Contains( gitURL.packageName ) ) {
-				if(string.IsNullOrEmpty( gitURL.branchName ) ) {
+				if( string.IsNullOrEmpty( gitURL.branchName ) ) {
 					dic.Add( gitURL.packageName, $"{GetCurrentURL()}" );
 				}
 				else {

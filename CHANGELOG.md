@@ -1,5 +1,15 @@
 # GitHubDownload
 
+## [0.5.1] - 2020-03-13
+
+### Added
+- Added command when clicking downloaded file
+
+### Changed
+- Download status is displayed as an icon
+- Changed toolbar repository display
+- Download is confirmed in the context menu
+
 ## [0.5.0] - 2020-02-23
 
 ### Added
