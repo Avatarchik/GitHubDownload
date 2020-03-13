@@ -60,7 +60,11 @@ namespace Hananoki.GitHubDownload {
 			return UnityEditor_Json_Deserialize.Invoke( null, new object[] { json } );
 		}
 		public static string Serialize( object obj, bool pretty = false, string indentText = "  " ) {
+#if UNITY_2019_1_OR_NEWER
 			return (string) UnityEditor_Serialize.Invoke( null, new object[] { obj, pretty, indentText } );
+#else
+			return (string) UnityEditor_Serialize.Invoke( null, new object[] { obj } );
+#endif
 		}
 	}
 }

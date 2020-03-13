@@ -1,5 +1,10 @@
 # GitHubDownload
 
+## [0.5.2] - 2020-03-14
+
+### Fixed
+- Fixed the argument error of UnityEditor.Json.Serialize in 2018.3-2018.4
+
 ## [0.5.1] - 2020-03-13
 
 ### Added
