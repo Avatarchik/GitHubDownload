@@ -72,11 +72,13 @@ namespace Hananoki.GitHubDownload {
 		public static void Load() {
 			unityPreferencesFolder = InternalEditorUtility.unityPreferencesFolder;
 			if( i != null ) return;
+
 			i = Get( PackageInfo.editorPrefName );
 			if( i == null ) {
 				i = new GitHubDownloadSettingsEditor();
 				Save();
 			}
+
 			if( i.urls != null ) {
 				if( 1 <= i.urls.Count ) {
 					i.gitUrls = new List<GitURL>();
@@ -86,6 +88,8 @@ namespace Hananoki.GitHubDownload {
 					Save();
 				}
 			}
+
+			i.gitUrls.Sort( ( x, y ) => string.Compare( x.url, y.url ) );
 		}
 
 

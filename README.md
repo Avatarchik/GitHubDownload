@@ -1,5 +1,8 @@
 # GitHubDownload
 
+![](https://img.shields.io/badge/unity-2018.3%20or%20later-green.svg)
+[![](https://img.shields.io/github/license/mob-sakai/GitDependencyResolverForUnity.svg)](https://github.com/mob-sakai/GitDependencyResolverForUnity/blob/upm/LICENSE.txt)
+
 [Japanese](https://translate.google.com/translate?sl=en&tl=ja&u=https://github.com/hananoki/GitHubDownload) (by Google Translate)
 
 ## Overview

@@ -1,6 +1,7 @@
 ﻿
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using UnityEditor;
 using UnityEditorInternal;
 using UnityEngine;
@@ -16,11 +17,13 @@ namespace Hananoki.GitHubDownload {
 			public Texture2D ol_minus;
 			public Texture2D Favorite;
 			public Texture2D IconSetting;
+			public Texture2D IconInfo;
 			public Styles() {
 				ol_plus =  AssetDatabase.LoadAssetAtPath<Texture2D>(AssetDatabase.GUIDToAssetPath( "ad645bf147d15d64f9bfd8d9261df17b" ));
 				ol_minus = AssetDatabase.LoadAssetAtPath<Texture2D>( AssetDatabase.GUIDToAssetPath( "ea88f29401a564148a8356c8a9141177" ) );
 				Favorite = EditorGUIUtility.FindTexture( "Favorite" );
 				IconSetting = EditorGUIUtility.FindTexture( "SettingsIcon" );
+				IconInfo = EditorGUIUtility.FindTexture( "UnityEditor.InspectorWindow" );
 			}
 		}
 
@@ -163,21 +166,37 @@ namespace Hananoki.GitHubDownload {
 
 			GUILayout.Space(8);
 
-			int i = 0;
 			int delIndex = -1;
 
-			foreach( var s in E.i.gitUrls ) {
+			var ss = E.i.gitUrls.Select( x => Helper.ParseURL( x.url ) ).ToArray();
+			string name = string.Empty;
+			for( var i = 0; i < ss.Length; i++ ) {
+				var s = ss[ i ];
+
+				if( name != s[ 0 ] ) {
+					if( name != string.Empty ) {
+						GUILayout.EndVertical();
+					}
+					GUILayout.BeginVertical( );
+					name = s[ 0 ];
+					GUILayout.Label( s[ 0 ], EditorStyles.boldLabel );
+				}
+
 				using( new GUILayout.HorizontalScope( EditorStyles.helpBox ) ) {
-					GUILayout.Label( s.url );
+					GUILayout.Label( s[ 1 ] );
+					if( GUIHelper.IconButton( s_styles.IconInfo ) ) {
+						GitHubView.Open( $"{Path.GetDirectoryName( E.i.gitUrls[ i ].url )}/{Path.GetFileNameWithoutExtension( E.i.gitUrls[ i ].url )}");
+					}
 					if( GUIHelper.IconButton( s_styles.IconSetting ) ) {
-						GitURLConfig.Open(s);
+						GitURLConfig.Open( E.i.gitUrls[ i ] );
 					}
 					if( GUIHelper.IconButton( s_styles.ol_minus ) ) {
 						delIndex = i;
 					}
 				}
-				i++;
 			}
+			GUILayout.EndVertical();
+
 			if( 0 <= delIndex ) {
 				E.i.gitUrls.RemoveAt( delIndex );
 				s_changed = true;

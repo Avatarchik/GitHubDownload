@@ -1,5 +1,16 @@
 # GitHubDownload
 
+## [0.6.0] - 2020-03-15
+
+### Added
+- Support package.json dependency package
+- GitHub page can be referenced from preferences
+
+### Changed
+- Changed toolbar repository display {package} : {name} => {name} : {package}
+- Automatically sort registered URLs
+- Display preferences by group
+
 ## [0.5.2] - 2020-03-14
 
 ### Fixed

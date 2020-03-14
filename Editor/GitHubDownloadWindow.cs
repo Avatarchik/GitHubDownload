@@ -4,11 +4,9 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net;
-using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using UnityEditor;
 using UnityEngine;
-using System.IO.Compression;
 
 using static System.IO.Path;
 
@@ -102,23 +100,7 @@ namespace Hananoki.GitHubDownload {
 		}
 
 
-		string MakeOutputPath( string gitURL ) {
-			var info = ParseURL( GetCurrentURL() );
-			return $"{E.gitHubCacheDirectory}/{info[ 0 ]}/{info[ 1 ]}";
-		}
 
-		string[] ParseURL( string gitURL ) {
-			if( string.IsNullOrEmpty( gitURL ) ) return null;
-			var m = Regex.Matches( gitURL, @"^(https://github.com)/(.*)" );
-			string[] ss = m[ 0 ].Groups[ 2 ].Value.Split( '/' );
-
-			return new string[] { ss[ 0 ], GetFileNameWithoutExtension( ss[ 1 ] ) };
-		}
-
-		string ParseURLToPopup( string gitURL ) {
-			var ss = ParseURL( gitURL );
-			return $"{ss[ 1 ]} : {ss[ 0 ]}";
-		}
 
 
 		bool AdjustSelectURL() {
@@ -136,6 +118,10 @@ namespace Hananoki.GitHubDownload {
 			return false;
 		}
 
+		string MakeOutputPath( string gitURL ) {
+			var info = Helper.ParseURL( GetCurrentURL() );
+			return $"{E.gitHubCacheDirectory}/{info[ 0 ]}/{info[ 1 ]}";
+		}
 
 		string GetCurrentURL() {
 			if( E.i.gitUrls.Count == 0 ) return string.Empty;
@@ -149,7 +135,7 @@ namespace Hananoki.GitHubDownload {
 		void MakeDownloadList() {
 			m_downloadDirs = new List<string>();
 
-			var info = ParseURL( GetCurrentURL() );
+			var info = Helper.ParseURL( GetCurrentURL() );
 			if( info == null ) return;
 			var outputDirectory = $"{E.gitHubCacheDirectory}/{info[ 0 ]}/{info[ 1 ]}";
 
@@ -183,7 +169,7 @@ namespace Hananoki.GitHubDownload {
 
 		void ReadWebResponseToFile( bool latest ) {
 			m_js = new List<ReleaseJson>();
-			var info = ParseURL( GetCurrentURL() );
+			var info = Helper.ParseURL( GetCurrentURL() );
 			if( info == null ) return;
 
 			var opath = $"{E.gitHubCacheDirectory}/{info[ 0 ]}/{info[ 1 ]}";
@@ -214,11 +200,9 @@ namespace Hananoki.GitHubDownload {
 
 
 		void GetReleasesResponse( string name, string repoName, bool latest ) {
-			//string content = string.Empty;
 			m_js = new List<ReleaseJson>();
 
 			try {
-				//using( new RequestStatusScope( latest ? "Downloading Release Latest ..." : "Downloading Release ..." ) )
 				using( var wc = new WebClient() ) {
 					var url = $"{githubURL}/{name}/{repoName}/releases";
 					if( latest ) {
@@ -248,13 +232,12 @@ namespace Hananoki.GitHubDownload {
 			}
 			catch( Exception e ) {
 				Debug.LogException( e );
-				//RequestStatus.SetError( e );
 			}
 		}
 
 
 		void GetReleasesResponse( string gitURL, bool latest ) {
-			var m = ParseURL( gitURL );
+			var m = Helper.ParseURL( gitURL );
 			GetReleasesResponse( m[ 0 ], m[ 1 ], latest );
 		}
 
@@ -335,18 +318,14 @@ namespace Hananoki.GitHubDownload {
 					fname = $"{repoName}-{tag}{extention}";
 				}
 				//System.Threading.Thread.Sleep( 10000 );
-				//using( new RequestStatusScope( "Download File " + GetFileName( url ) ) )
 
 				using( WebClient wc = new WebClient() ) {
 					RequestStatus.Begin( $"Download File {GetFileName( url )}" );
 					wc.Headers.Add( "User-Agent", "Nothing" );
 					wc.DownloadProgressChanged += ( sender, e ) => {
-						//Debug.Log( "DownloadProgressChanged" );
-						//RequestStatus.networkingMsg = $"Download File {GetFileName( url )} {e.BytesReceived}of {e.TotalBytesToReceive} bytes. {e.ProgressPercentage} % complete...";
 						RequestStatus.networkingMsg = $"Download File {GetFileName( url )} {e.ProgressPercentage} %";
 					};
 					wc.DownloadFileCompleted += ( sender, e ) => {
-						//Debug.Log( "DownloadFile" );
 						RequestStatus.End();
 
 						MakeDownloadList();
@@ -384,7 +363,7 @@ namespace Hananoki.GitHubDownload {
 					AdjustSelectURL();
 
 					var a = E.i.gitUrls.Aggregate( "", ( max, cur ) => max.Length > cur.url.Length ? max : cur.url );
-					//m_selectURL = EditorGUILayout.Popup( m_selectURL, E.i.gitUrls.Select( x => ParseURLToPopup( x.url ) ).ToArray(), s_styles.toolbarDropDown );
+
 					var content = new GUIContent( GetFileNameWithoutExtension( a ) );
 					var size = s_styles.toolbarDropDown.CalcSize( content );
 					var rc = GUILayoutUtility.GetRect( content, s_styles.toolbarDropDown, GUILayout.Width( size.x + 16 ) );
@@ -392,7 +371,7 @@ namespace Hananoki.GitHubDownload {
 						var m = new GenericMenu();
 						for( int i = 0; i < E.i.gitUrls.Count; i++ ) {
 							var p = E.i.gitUrls[ i ];
-							m.AddItem( new GUIContent( ParseURLToPopup( p.url ) ), false, ( idx ) => {
+							m.AddItem( new GUIContent( Helper.ParseURLToPopup( p.url ) ), false, ( idx ) => {
 								m_selectURL = (int) idx;
 								Refresh();
 							}, i );
@@ -433,7 +412,7 @@ namespace Hananoki.GitHubDownload {
 
 			DrawToolbar();
 
-			var info = ParseURL( GetCurrentURL() );
+			var info = Helper.ParseURL( GetCurrentURL() );
 
 			if( info == null ) {
 				EditorGUILayout.HelpBox( "Set URL from preferences", MessageType.Info );
@@ -472,8 +451,7 @@ namespace Hananoki.GitHubDownload {
 						if( data.enablePackage ) {
 							using( new GUILayout.HorizontalScope( s_styles.helpBox ) ) {
 								if( GUILayout.Button( new GUIContent( $"Install Package - {data.packageName} - {data.version}", s_styles.IconPackage ), s_styles.ExposablePopupItem, GUILayout.ExpandWidth( false ) ) ) {
-									gitURL = data;
-									EditorApplication.update += DeleyPackageInstall;
+									Task.Run( ()=> InstallPackageProcess( data ) );
 								}
 							}
 							GUILayout.Space( 4 );
@@ -497,7 +475,6 @@ namespace Hananoki.GitHubDownload {
 													s_packagePath = fname;
 													s_interactive = true;
 													EditorApplication.update += DeleyImportPackage;
-													//AssetDatabase.ImportPackage( s_packagePath, s_interactive );
 												}
 											}
 										}
@@ -552,6 +529,8 @@ namespace Hananoki.GitHubDownload {
 			}
 		}
 
+
+
 		string s_packagePath;
 		bool s_interactive;
 		void DeleyImportPackage() {
@@ -559,29 +538,104 @@ namespace Hananoki.GitHubDownload {
 			AssetDatabase.ImportPackage( s_packagePath, s_interactive );
 		}
 
-		E.GitURL gitURL;
 
-		void DeleyPackageInstall() {
-			EditorApplication.update -= DeleyPackageInstall;
-			var dictionary = ManifestJson.Deserialize( File.ReadAllText( "Packages/manifest.json" ) ) as Dictionary<string, object>;
-			var dic = (System.Collections.IDictionary) dictionary[ "dependencies" ];
-			//foreach( object current in dic.Keys ) {
-			//	Debug.Log( current as string);
-			//}
-			if( !dic.Contains( gitURL.packageName ) ) {
-				if( string.IsNullOrEmpty( gitURL.branchName ) ) {
-					dic.Add( gitURL.packageName, $"{GetCurrentURL()}" );
-				}
-				else {
-					dic.Add( gitURL.packageName, $"{GetCurrentURL()}#{gitURL.branchName}" );
-				}
-				File.WriteAllText( "Packages/manifest.json", ManifestJson.Serialize( dictionary, true ) );
-				AssetDatabase.Refresh();
+		void DeleyRefresh() {
+			EditorApplication.update -= DeleyRefresh;
+			AssetDatabase.Refresh();
+
+		}
+
+
+		List<(string,string)> m_dependenciesPackages;
+
+		void InstallPackageProcess( E.GitURL gitURL ) {
+			m_dependenciesPackages = new List<(string, string)>();
+
+			var uu = gitURL.url.Split( '/' );
+			var revision = gitURL.branchName;
+			if( string.IsNullOrEmpty( revision ) ) {
+				revision = "HEAD";
+			}
+
+			if( string.IsNullOrEmpty( gitURL.branchName ) ) {
+				m_dependenciesPackages.Add( (gitURL.packageName, $"{GetCurrentURL()}") );
 			}
 			else {
-				EditorUtility.DisplayDialog( "Info", "Package installed", "OK" );
+				m_dependenciesPackages.Add( (gitURL.packageName, $"{GetCurrentURL()}#{gitURL.branchName}") );
 			}
+
+			string url = $"https://raw.githubusercontent.com/{uu[ 3 ]}/{GetFileNameWithoutExtension( uu[ 4 ] )}/{revision}/package.json";
+			//Debug.Log( url );
+
+			if( !DependencyResolution( uu[ 3 ], GetFileNameWithoutExtension( uu[ 4 ] ), revision ) ) {
+				Debug.LogError( "Error: InstallPackageProcess" );
+				return;
+			}
+
+			var manifest_json = ManifestJson.Deserialize( File.ReadAllText( "Packages/manifest.json" ) ) as Dictionary<string, object>;
+			var dic = (System.Collections.IDictionary) manifest_json[ "dependencies" ];
+
+			foreach( var p in m_dependenciesPackages ) {
+				if( !dic.Contains( p.Item1 ) ) {
+					//Debug.Log( $"{p.Item1} ; {p.Item2}" );
+					dic.Add( p.Item1, p.Item2 );
+				}
+			}
+
+			File.WriteAllText( "Packages/manifest.json", ManifestJson.Serialize( manifest_json, true ) );
+			EditorApplication.update += DeleyRefresh;
+
+			Debug.Log( "Complete: InstallPackageProcess" );
 		}
+
+
+		bool DependencyResolution( string name, string packageName, string revision ) {
+
+			List<(string, string)> dependenciesPackages = new List<(string, string)>();
+
+			using( var wc = new WebClient() ) {
+				try {
+					string url = $"https://raw.githubusercontent.com/{name}/{packageName}/{revision}/package.json";
+					var packageJson = wc.DownloadString( new Uri( url ) );
+
+					var obj = ManifestJson.Deserialize( packageJson );
+					Dictionary<string, object> dictionary = obj as Dictionary<string, object>;
+					try {
+						var dic = (System.Collections.IDictionary) dictionary[ "dependencies" ];
+
+						foreach( object current in dic.Keys ) {
+							var pName = current as string;
+							if( 0 <= m_dependenciesPackages.FindIndex( x => x.Item1 == pName ) ) continue;
+
+							dependenciesPackages.Add( (pName, dic[ pName ] as string) );
+						}
+					}
+					catch( KeyNotFoundException ) {
+						// dependenciesが無い場合は無視
+					}
+				}
+				catch( Exception exx ) {
+					Debug.LogException( exx );
+					return false;
+				}
+			}
+
+			m_dependenciesPackages.AddRange( dependenciesPackages );
+			
+			foreach( var p in dependenciesPackages ) {
+				var u = p.Item2.Split( '#' );
+				var uu = Helper.ParseURL( u[0] );
+				var rev = u.Length == 1 ? "" : u[1];
+				if( string.IsNullOrEmpty( rev ) ) {
+					rev = "HEAD";
+				}
+				if( !DependencyResolution( uu[ 0 ], uu[ 1 ], rev ) ) {
+					return false;
+				}
+			}
+			return true;
+		}
+		
 	}
 }
 
