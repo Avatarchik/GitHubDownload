@@ -18,7 +18,7 @@ namespace Hananoki.GitHubDownload {
 
 		public static GitHubDownloadWindow s_window;
 
-		string githubURL = "https://api.github.com/repos";
+
 
 		public int m_selectURL;
 		public List<ReleaseJson> m_js;
@@ -91,6 +91,7 @@ namespace Hananoki.GitHubDownload {
 			( (EditorWindow) s_window )?.Repaint();
 		}
 
+
 		void OnEnable() {
 			s_window = this;
 			E.Load();
@@ -98,7 +99,6 @@ namespace Hananoki.GitHubDownload {
 			ReadWebResponseToFile( enableLatest );
 			indexChanged = true;
 		}
-
 
 
 
@@ -118,10 +118,13 @@ namespace Hananoki.GitHubDownload {
 			return false;
 		}
 
+
+
 		string MakeOutputPath( string gitURL ) {
 			var info = Helper.ParseURL( GetCurrentURL() );
 			return $"{E.gitHubCacheDirectory}/{info[ 0 ]}/{info[ 1 ]}";
 		}
+
 
 		string GetCurrentURL() {
 			if( E.i.gitUrls.Count == 0 ) return string.Empty;
@@ -145,143 +148,165 @@ namespace Hananoki.GitHubDownload {
 		}
 
 
-		void WriteWebResponseToFile( string content, bool latest ) {
-			var opath = MakeOutputPath( GetCurrentURL() );
 
-			if( !Directory.Exists( opath ) ) {
-				Directory.CreateDirectory( opath );
-			}
-
-			if( latest ) {
-				opath = $"{opath}/releases_latest.json";
-			}
-			else {
-				opath = $"{opath}/releases.json";
-			}
-
-
-
-			using( var st = new StreamWriter( opath ) ) {
-				st.Write( content );
-			}
-		}
 
 
 		void ReadWebResponseToFile( bool latest ) {
-			m_js = new List<ReleaseJson>();
 			var info = Helper.ParseURL( GetCurrentURL() );
 			if( info == null ) return;
 
-			var opath = $"{E.gitHubCacheDirectory}/{info[ 0 ]}/{info[ 1 ]}";
-
-			if( !Directory.Exists( opath ) ) return;
+			m_js = new List<ReleaseJson>();
 
 			if( latest ) {
-				var fname = $"{opath}/releases_latest.json";
-				if( !File.Exists( fname ) ) return;
-
-				using( var st = new StreamReader( fname ) ) {
-					var jss = JsonUtility.FromJson<ReleaseJson>( st.ReadToEnd() );
+				Helper.ReadWebResponseToFile( info[ 0 ], info[ 1 ], "releases/latest", ( content ) => {
+					var jss = JsonUtility.FromJson<ReleaseJson>( content );
 					m_js.Add( jss );
-				}
+				} );
 			}
 			else {
-				var fname = $"{opath}/releases.json";
-				if( !File.Exists( fname ) ) return;
-
-				using( var st = new StreamReader( fname ) ) {
-					var content = st.ReadToEnd();
+				Helper.ReadWebResponseToFile( info[ 0 ], info[ 1 ], "releases", ( content ) => {
 					var content2 = "{\"Items\":" + content + "}";
 					var jss = JsonHelper.FromJson<ReleaseJson>( content2 );
 					m_js.AddRange( jss );
-				}
-			}
-		}
-
-
-		void GetReleasesResponse( string name, string repoName, bool latest ) {
-			m_js = new List<ReleaseJson>();
-
-			try {
-				using( var wc = new WebClient() ) {
-					var url = $"{githubURL}/{name}/{repoName}/releases";
-					if( latest ) {
-						url += "/latest";
-					}
-					wc.Headers.Add( "User-Agent", "Nothing" );
-					wc.DownloadStringCompleted += ( sender, e ) => {
-						var content = e.Result;
-						if( string.IsNullOrEmpty( content ) ) return;
-
-						if( latest ) {
-							var rj = JsonUtility.FromJson<ReleaseJson>( content );
-							if( rj == null ) return;
-							m_js.Add( rj );
-						}
-						else {
-							var content2 = "{\"Items\":" + content + "}";
-							var jss = JsonHelper.FromJson<ReleaseJson>( content2 );
-							m_js.AddRange( jss );
-						}
-						WriteWebResponseToFile( content, latest );
-						Repaint();
-					};
-					wc.DownloadStringAsync( new Uri( url ) );
-
-				}
-			}
-			catch( Exception e ) {
-				Debug.LogException( e );
+				} );
 			}
 		}
 
 
 		void GetReleasesResponse( string gitURL, bool latest ) {
+			GetTagsResponse( gitURL );
+
+			m_js = new List<ReleaseJson>();
 			var m = Helper.ParseURL( gitURL );
-			GetReleasesResponse( m[ 0 ], m[ 1 ], latest );
+			if( latest ) {
+				Helper.GetResponse( m[ 0 ], m[ 1 ], "releases/latest", ( content ) => {
+					var js = JsonUtility.FromJson<ReleaseJson>( content );
+					if( js == null ) return;
+					m_js.Add( js );
+					Repaint();
+				} );
+			}
+			else {
+				Helper.GetResponse( m[ 0 ], m[ 1 ], "releases", ( content ) => {
+					var content2 = "{\"Items\":" + content + "}";
+					var js = JsonHelper.FromJson<ReleaseJson>( content2 );
+					m_js.AddRange( js );
+					Repaint();
+				} );
+			}
 		}
 
 
+		void GetTagsResponse( string gitURL ) {
+			var m = Helper.ParseURL( gitURL );
+			Helper.GetResponse( m[ 0 ], m[ 1 ], "tags" );
+		}
+
+		string[] GetVersions() {
+			var ss = m_js.Select( x => x.tag_name ).ToArray();
+			return ss;
+		}
+
+
+
+		public (Texture2D, string, bool) GetInstallPackageInfo( string packageName ) {
+			var (find, revisionName, revisionLock) = Helper.GetInstallPackageInfo( packageName );
+			if( find ) {
+				return (s_styles.IconIndicatorON, revisionName, revisionLock);
+			}
+			return (s_styles.IconIndicatorOFF, revisionName, revisionLock);
+		}
+
+
+
+		public void GUIInstallButton( E.GitURL gitURL ) {
+			var (rev, hash) = Helper.GetLockData( gitURL.packageName );
+			//if( rev == string.Empty ) return;
+
+			Tags[] tags = null;
+			var read = Helper.ReadWebResponseToFile(
+				Helper.ParseURL( gitURL.url ),
+				"tags",
+				( content ) => tags = JsonHelper.FromJson<Tags>( "{\"Items\":" + content + "}" ) );
+
+			if( !read ) {
+				EditorGUILayout.HelpBox( "\"tags.json\" Not Found. Please Refresh Button Push.", MessageType.Warning );
+				return;
+			}
+
+			var (ico, revisionName, revisionLock) = GetInstallPackageInfo( gitURL.packageName );
+			var buttonName = $"{gitURL.packageName}";
+			var rName = revisionName;
+			if( rName != string.Empty ) {
+				if( rName == "HEAD" ) {
+					var t = tags.GetTags( hash );
+					if( t != null ) {
+						rName = t.name;
+					}
+				}
+				buttonName += $" - {rName} [{hash}]";
+			}
+			if( GUILayout.Button( new GUIContent( buttonName, ico ), s_styles.ExposablePopupItem, GUILayout.ExpandWidth( false ) ) ) {
+				if( revisionName != string.Empty ) {
+
+					var m = new GenericMenu();
+					//if( revisionName == "HEAD" ) {
+						m.AddItem( new GUIContent( $"Update [{revisionName}]" ), false, () => {
+							GetTagsResponse( gitURL.url );
+							Helper.UpdatePackageHEAD( gitURL.packageName );
+						} );
+					//}
+					m.AddItem( new GUIContent( "Uninstall Package" ), false, () => Helper.UninstallPackage( gitURL.packageName ) );
+					if( !revisionLock ) {
+						m.AddSeparator( "" );
+
+						//m.AddItem( new GUIContent( "HEAD" ), rev == "HEAD", () => { } );
+						var vers = GetVersions();
+						foreach( var v in tags ) {
+							m.AddItem( new GUIContent( $"{v.name}: {v.commit.sha}" ), hash == v.commit.sha, ( _rev ) => {
+								Helper.ChangeRevision( gitURL.packageName, (string) _rev, tags.GetRevisionHash((string) _rev ) );
+								}, v.name );
+						}
+					}
+					m.DropDown( new Rect( Event.current.mousePosition, new Vector2( 0, 0 ) ) );
+				}
+				else {
+					var m = new GenericMenu();
+					m.AddItem( new GUIContent( "Install Package" ), false, () => {
+						Task.Run( () => InstallPackageProcess( gitURL ) );
+					} );
+					m.DropDown( new Rect( Event.current.mousePosition, new Vector2( 0, 0 ) ) );
+				}
+			}
+		}
+
+
+
 		public Texture2D GetDownloadIndicatorIcon( string url, string name, string repoName, string tag, string extention = "" ) {
-			if( IsDownloaded( url, name, repoName, tag, extention ) ) {
+			if( Helper.IsDownloaded( url, name, repoName, tag, extention ) ) {
 				return s_styles.IconIndicatorON;
 			}
 			return s_styles.IconIndicatorOFF;
 		}
 
 
-		public string GetDownloadFileName( string url, string name, string repoName, string tag, string extention = "" ) {
-			var outputDirectory = $"{E.gitHubCacheDirectory}/{name}/{repoName}/{tag}";
-			string fname;
-			if( string.IsNullOrEmpty( extention ) ) {
-				fname = GetFileName( url );
-			}
-			else {
-				fname = $"{repoName}-{tag}{extention}";
-			}
-			return outputDirectory + "/" + fname;
-		}
-
-
-		public bool IsDownloaded( string url, string name, string repoName, string tag, string extention = "" ) {
-			return File.Exists( GetDownloadFileName( url, name, repoName, tag, extention ) );
-		}
 
 		public void GUIDownloadButton( string url, string name, string repoName, string tag, string extention = "" ) {
 			GUIDownloadButton( GetFileName( url ), url, name, repoName, tag, extention );
 		}
 
+
 		public void GUIDownloadButton( string title, string url, string name, string repoName, string tag, string extention = "" ) {
 			var ico = GetDownloadIndicatorIcon( url, name, repoName, tag, extention );
 			if( GUILayout.Button( new GUIContent( title, ico ), s_styles.ExposablePopupItem, GUILayout.ExpandWidth( false ) ) ) {
-				if( IsDownloaded( url, name, repoName, tag, extention ) ) {
+				if( Helper.IsDownloaded( url, name, repoName, tag, extention ) ) {
 					var m = new GenericMenu();
 					m.AddItem( new GUIContent( "Re-download" ), false, () => {
 						DownloadFile( url, name, repoName, tag, extention );
 					} );
 					m.AddItem( new GUIContent( "Run in shell" ), false, () => {
 						var p = new System.Diagnostics.Process();
-						p.StartInfo.FileName = GetDownloadFileName( url, name, repoName, tag, extention );
+						p.StartInfo.FileName = Helper.GetDownloadFileName( url, name, repoName, tag, extention );
 						p.Start();
 					} );
 
@@ -346,6 +371,7 @@ namespace Hananoki.GitHubDownload {
 			MakeDownloadList();
 			ReadWebResponseToFile( enableLatest );
 			indexChanged = true;
+			Helper.s_manifestJsonCache = null;
 			RequestStatus.Reset();
 		}
 
@@ -392,6 +418,11 @@ namespace Hananoki.GitHubDownload {
 					GetReleasesResponse( GetCurrentURL(), enableLatest );
 				}
 				GUILayout.FlexibleSpace();
+				if( GUILayout.Button( "manifest.json", EditorStyles.toolbarButton ) ) {
+					var p = new System.Diagnostics.Process();
+					p.StartInfo.FileName = $"{Environment.CurrentDirectory.Replace("\\","/")}/Packages/manifest.json";
+					p.Start();
+				}
 				if( GUILayout.Button( "Package Manager", EditorStyles.toolbarButton ) ) {
 					EditorApplication.ExecuteMenuItem( "Window/Package Manager" );
 				}
@@ -450,12 +481,11 @@ namespace Hananoki.GitHubDownload {
 						var data = E.GetData( GetCurrentURL() );
 						if( data.enablePackage ) {
 							using( new GUILayout.HorizontalScope( s_styles.helpBox ) ) {
-								if( GUILayout.Button( new GUIContent( $"Install Package - {data.packageName} - {data.version}", s_styles.IconPackage ), s_styles.ExposablePopupItem, GUILayout.ExpandWidth( false ) ) ) {
-									Task.Run( ()=> InstallPackageProcess( data ) );
-								}
+								GUIInstallButton( data );
 							}
 							GUILayout.Space( 4 );
 						}
+
 						foreach( var p in m_js ) {
 
 							using( new GUILayout.VerticalScope( s_styles.helpBox ) ) {
@@ -539,14 +569,10 @@ namespace Hananoki.GitHubDownload {
 		}
 
 
-		void DeleyRefresh() {
-			EditorApplication.update -= DeleyRefresh;
-			AssetDatabase.Refresh();
-
-		}
+		
 
 
-		List<(string,string)> m_dependenciesPackages;
+		List<(string, string)> m_dependenciesPackages;
 
 		void InstallPackageProcess( E.GitURL gitURL ) {
 			m_dependenciesPackages = new List<(string, string)>();
@@ -572,8 +598,8 @@ namespace Hananoki.GitHubDownload {
 				return;
 			}
 
-			var manifest_json = ManifestJson.Deserialize( File.ReadAllText( "Packages/manifest.json" ) ) as Dictionary<string, object>;
-			var dic = (System.Collections.IDictionary) manifest_json[ "dependencies" ];
+			//var manifest_json = ManifestJson.Deserialize( File.ReadAllText( "Packages/manifest.json" ) ) as Dictionary<string, object>;
+			var dic = (System.Collections.IDictionary) Helper._manifestJsonCache[ "dependencies" ];
 
 			foreach( var p in m_dependenciesPackages ) {
 				if( !dic.Contains( p.Item1 ) ) {
@@ -582,8 +608,7 @@ namespace Hananoki.GitHubDownload {
 				}
 			}
 
-			File.WriteAllText( "Packages/manifest.json", ManifestJson.Serialize( manifest_json, true ) );
-			EditorApplication.update += DeleyRefresh;
+			Helper.RefreshManifestJson();
 
 			Debug.Log( "Complete: InstallPackageProcess" );
 		}
@@ -621,11 +646,11 @@ namespace Hananoki.GitHubDownload {
 			}
 
 			m_dependenciesPackages.AddRange( dependenciesPackages );
-			
+
 			foreach( var p in dependenciesPackages ) {
 				var u = p.Item2.Split( '#' );
-				var uu = Helper.ParseURL( u[0] );
-				var rev = u.Length == 1 ? "" : u[1];
+				var uu = Helper.ParseURL( u[ 0 ] );
+				var rev = u.Length == 1 ? "" : u[ 1 ];
 				if( string.IsNullOrEmpty( rev ) ) {
 					rev = "HEAD";
 				}
@@ -635,7 +660,6 @@ namespace Hananoki.GitHubDownload {
 			}
 			return true;
 		}
-		
 	}
 }
 

@@ -35,12 +35,12 @@ namespace Hananoki.GitHubDownload {
 		void DrawGUI() {
 			using( new GUILayout.VerticalScope( EditorStyles.helpBox ) ) {
 				EditorGUI.BeginChangeCheck();
-				gitURL.branchName = EditorGUILayout.TextField( "branch", gitURL.branchName );
+				gitURL.branchName = EditorGUILayout.TextField( "revision", gitURL.branchName );
 				gitURL.enablePackage = EditorGUILayout.Toggle( "package.json", gitURL.enablePackage );
 				gitURL.packageName = EditorGUILayout.TextField( "packageName", gitURL.packageName );
-				using( new EditorGUI.DisabledGroupScope( true ) ) {
-					gitURL.version = EditorGUILayout.TextField( "version", gitURL.version );
-				}
+				//using( new EditorGUI.DisabledGroupScope( true ) ) {
+				//	gitURL.version = EditorGUILayout.TextField( "version", gitURL.version );
+				//}
 				if( EditorGUI.EndChangeCheck() ) {
 					E.Save();
 				}
@@ -59,7 +59,7 @@ namespace Hananoki.GitHubDownload {
 							var obj = ManifestJson.Deserialize( e.Result );
 							Dictionary<string, object> dictionary = obj as Dictionary<string, object>;
 							gitURL.packageName = dictionary[ "name" ] as string;
-							gitURL.version = dictionary[ "version" ] as string;
+							//gitURL.version = dictionary[ "version" ] as string;
 							gitURL.enablePackage = true;
 							E.Save();
 							Repaint();

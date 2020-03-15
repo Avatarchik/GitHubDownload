@@ -20,13 +20,13 @@ namespace Hananoki.GitHubDownload {
 			public bool enablePackage;
 			public string branchName;
 			public string packageName;
-			public string version;
+			//public string version;
 			public GitURL( string url ) {
 				this.url = url;
 				enablePackage = false;
 				branchName = "";
 				packageName = "";
-				version = "";
+				//version = "";
 			}
 		}
 		public List<GitURL> gitUrls;

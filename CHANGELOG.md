@@ -1,5 +1,14 @@
 # GitHubDownload
 
+## [0.7.0] - 2020-03-15
+
+### Added
+- Added support for switching package versions
+- Added a button to open manifest.json on the toolbar
+
+### Changed
+- Package installation status is displayed as an icon
+
 ## [0.6.0] - 2020-03-15
 
 ### Added
